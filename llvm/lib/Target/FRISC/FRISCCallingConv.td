@@ -10,6 +10,9 @@
 //===----------------------------------------------------------------------===//
 
 def RetCC_FRISC : CallingConv<[
+    // Promote i8/i16 arguments to i32.
+    CCIfType<[i8, i16], CCPromoteToType<i32>>,
+
     // i32 are returned in registers R0, R1, R2, R3
     CCIfType<[i32], CCAssignToReg<[R0, R1, R2, R3]>>,
 
@@ -19,6 +22,9 @@ def RetCC_FRISC : CallingConv<[
 ]>;
 
 def CC_FRISC : CallingConv<[
+    // Pass by value if the byval attribute is given
+    CCIfByVal<CCPassByVal<4, 4>>,
+
     // Promote i8/i16 arguments to i32.
     CCIfType<[i8, i16], CCPromoteToType<i32>>,
 
