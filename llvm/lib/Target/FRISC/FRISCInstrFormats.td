@@ -76,7 +76,7 @@ def CondCode : Operand<i32> { let PrintMethod = "printCondCode"; }
 
 def MemSrc : Operand<i32> {
     let MIOperandInfo = (ops GPR, Imm20);
-    let PrintMethod = "printAddrModeMemSrc";
+    let PrintMethod = "printMemSrcOperand";
     let EncoderMethod = "getMemSrcValue";
 }
 
