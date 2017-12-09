@@ -23,7 +23,7 @@ static std::string computeDataLayout(const Triple &TT, StringRef CPU,
                                      const TargetOptions &Options) {
   // XXX Build the triple from the arguments.
   // This is hard-coded for now for this example target.
-  return "e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-a:0:32-n32-S8";
+  return "e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-a:0:32-n32-S32";
 }
 
 FRISCTargetMachine::FRISCTargetMachine(const Target &T, const Triple &TT,
