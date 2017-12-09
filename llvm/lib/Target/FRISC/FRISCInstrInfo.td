@@ -34,20 +34,19 @@ def SDT_FRISCCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
 // FRISC-specific node definitions
 //===----------------------------------------------------------------------===//
 
-def FRISCretFlag : SDNode<"CJGISD::RET_FLAG", SDTNone,
+def FRISCretFlag : SDNode<"FRISCISD::RET_FLAG", SDTNone,
                      [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
-def FRISCcmp     : SDNode<"CJGISD::CMP", SDT_FRISCCmp, [SDNPOutGlue]>;
-def FRISCbrcc    : SDNode<"CJGISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain,          // ???
-                                                       SDNPInGlue]>;
-def FRISCSelectCC: SDNode<"CJGISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;  // ???
-def FRISCWrapper : SDNode<"CJGISD::Wrapper", SDT_FRISCWrapper>;
-def FRISCcall    : SDNode<"CJGISD::CALL", SDT_FRISCCall,
+def FRISCcmp     : SDNode<"FRISCISD::CMP", SDT_FRISCCmp, [SDNPOutGlue]>;
+def FRISCbrcc    : SDNode<"FRISCISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain, SDNPInGlue]>;  // ???
+def FRISCSelectCC: SDNode<"FRISCISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;        // ???
+def FRISCWrapper : SDNode<"FRISCISD::Wrapper", SDT_FRISCWrapper>;
+def FRISCcall    : SDNode<"FRISCISD::CALL", SDT_FRISCCall,
                       [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue, SDNPVariadic]>;
 def FRISCcallseq_start :
                  SDNode<"ISD::CALLSEQ_START", SDT_FRISCCallSeqStart,
                         [SDNPHasChain, SDNPOutGlue]>;
 def FRISCcallseq_end :
-                 SDNode<"ISD::CALLSEQ_END",   SDT_FRISCCallSeqEnd,
+                 SDNode<"ISD::CALLSEQ_END", SDT_FRISCCallSeqEnd,
                         [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
 //===----------------------------------------------------------------------===//
@@ -75,7 +74,9 @@ defm ASHR : ALUInst<OPC_ASHR, "ASHR", sra>;
 
 defm MUL  : ALUInst<OPC_MUL, "MUL", mul>;
 
-defm CMP  : ALUInst2<OPC_CMP, "CMP", FRISCcmp>;
+let isCompare = 1 in {
+    defm CMP  : ALUInst2<OPC_CMP, "CMP", FRISCcmp>;
+}
 
 // Memory operations
 
@@ -89,7 +90,7 @@ def POP   : StackInst<OPC_POP, "POP", (outs GPR:$reg), (ins), []>;
 
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
     defm JP     : CtrlInst<OPC_JP, "JP", br>;
-    defm JR     : CtrlInst<OPC_JR, "JR", brind;
+    defm JR     : CtrlInst<OPC_JR, "JR", brind>;
 }
 
 let isBranch = 1, isTerminator = 1, Uses = [SR] in {
@@ -116,13 +117,26 @@ let isTerminator = 1 in {
 
 // Move operations
 
-def MoveInst_rr : FRISCInst<OP_MOVE, > {
+let isAsCheapAsAMove = 1 in {
+    def MOVE_rr : FRISCInst<OPC_MOVE, (outs GPR:$dst), (ins GPR:$src), "MOVE\t$src, $dst", []> {
+        bits<3> dst;
+        bits<3> src;
+        let Modifier = 0;
+        let Inst{25-23} = dst;
+        let Inst{22-20} = 0;
+        let Inst{19-17} = src;
+    }
 
-}
+    def MOVE_ri : FRISCInst<OPC_MOVE, (outs GPR:$dst), (ins Imm20:$src), "MOVE\t$src, $dst", []> {
+        let isMoveImm = 1;
 
-def MoveInst_ri : FRISCInst<OP_MOVE, > {
-    let isMoveImm = 1;
-
+        bits<3> dst;
+        bits<20> src;
+        let Modifier = 1;
+        let Inst{25-23} = dst;
+        let Inst{22-20} = 0;
+        let Inst{19-0} = src;
+    }
 }
 
 //===----------------------------------------------------------------------===//
@@ -130,11 +144,34 @@ def MoveInst_ri : FRISCInst<OP_MOVE, > {
 //===----------------------------------------------------------------------===//
 
 let Defs = [SP], Uses = [SP] in {
-    def ADJCALLSTACKDOWN : FRISCPseudo<(outs), (ins CJGimm16:$amt),
-                                       "#ADJCALLSTACKDOWN",
+    def ADJCALLSTACKDOWN : FRISCPseudo<(outs), (ins i32imm:$amt),
+                                       "# ADJCALLSTACKDOWN",
                                        [(FRISCcallseq_start timm:$amt)]>;
-    def ADJCALLSTACKUP : FRISCPseudo<(outs), (ins CJGimm16:$amt1, CJGimm16:$amt2),
-                                     "#ADJCALLSTACKUP",
+    def ADJCALLSTACKUP : FRISCPseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
+                                     "# ADJCALLSTACKUP",
                                      [(FRISCcallseq_end timm:$amt1, timm:$amt2)]>;
 }
 
+//===----------------------------------------------------------------------===//
+// Non-Instruction Patterns
+//===----------------------------------------------------------------------===//
+
+// GlobalAddress, ExternalSymbol
+def : Pat<(i32 (FRISCWrapper tglobaladdr:$dst)), (MOVE_ri tglobaladdr:$dst)>;
+def : Pat<(i32 (FRISCWrapper texternalsym:$dst)), (MOVE_ri texternalsym:$dst)>;
+
+def : Pat<(add GPR:$src, (FRISCWrapper tglobaladdr:$src2)),
+          (ADD_ri GPR:$src, tglobaladdr:$src2)>;
+def : Pat<(add GPR:$src, (FRISCWrapper texternalsym:$src2)),
+          (ADD_ri GPR:$src, texternalsym:$src2)>;
+
+def : Pat<(store (i32 (FRISCWrapper tglobaladdr:$src)), addr:$dst),
+          (STORE_i addr:$dst, tglobaladdr:$src)>;
+def : Pat<(store (i32 (FRISCWrapper texternalsym:$src)), addr:$dst),
+          (STORE_i addr:$dst, texternalsym:$src)>;
+
+// Calls
+def : Pat<(FRISCcall (i32 tglobaladdr:$addr)),
+          (CALL_i tglobaladdr:$addr)>;
+def : Pat<(FRISCcall (i32 texternalsym:$addr)),
+          (CALL_i texternalsym:$addr)>;
