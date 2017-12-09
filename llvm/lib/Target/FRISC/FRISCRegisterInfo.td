@@ -21,10 +21,10 @@ foreach i = 0-6 in {
     def R#i : FRISCReg<i, "R" ## i>;
 }
 
-def R7 : FRISCReg<7, "R7", ["SP"]>;
+def SP : FRISCReg<7, "SP", ["R7"]>;
 def SR : FRISCReg<8, "SR">;
 def PC : FRISCReg<9, "PC">;
 
-def GPR : RegisterClass<"FRISC", [i32], 32, (sequence "R%u", 0, 7)>;
+def GPR : RegisterClass<"FRISC", [i32], 32, (add (sequence "R%u", 0, 6), SP)>;
 
 // TODO: Add Vector registers

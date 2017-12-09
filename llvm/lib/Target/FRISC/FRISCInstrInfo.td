@@ -7,18 +7,63 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file describes the FRISC instructions in TabFRISCen format.
+// This file describes the FRISC instructions in TableGen format.
 //
 //===----------------------------------------------------------------------===//
 
 include "FRISCInstrFormats.td"
+
+//===----------------------------------------------------------------------===//
+// Type Profiles
+//===----------------------------------------------------------------------===//
+
+// Ensure the two operands of compare are of the same type
+def SDT_FRISCCmp        : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
+def SDT_FRISCBrCC       : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,    // ???
+                                               SDTCisVT<1, i32>]>;
+def SDT_FRISCSelectCC   : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,      // ???
+                                               SDTCisSameAs<1, 2>,
+                                               SDTCisVT<3, i32>]>;
+def SDT_FRISCWrapper    : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
+                                               SDTCisPtrTy<0>]>;
+def SDT_FRISCCall         : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
+def SDT_FRISCCallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>]>;
+def SDT_FRISCCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
+
+//===----------------------------------------------------------------------===//
+// FRISC-specific node definitions
+//===----------------------------------------------------------------------===//
+
+def FRISCretFlag : SDNode<"CJGISD::RET_FLAG", SDTNone,
+                     [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+def FRISCcmp     : SDNode<"CJGISD::CMP", SDT_FRISCCmp, [SDNPOutGlue]>;
+def FRISCbrcc    : SDNode<"CJGISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain,          // ???
+                                                       SDNPInGlue]>;
+def FRISCSelectCC: SDNode<"CJGISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;  // ???
+def FRISCWrapper : SDNode<"CJGISD::Wrapper", SDT_FRISCWrapper>;
+def FRISCcall    : SDNode<"CJGISD::CALL", SDT_FRISCCall,
+                      [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue, SDNPVariadic]>;
+def FRISCcallseq_start :
+                 SDNode<"ISD::CALLSEQ_START", SDT_FRISCCallSeqStart,
+                        [SDNPHasChain, SDNPOutGlue]>;
+def FRISCcallseq_end :
+                 SDNode<"ISD::CALLSEQ_END",   SDT_FRISCCallSeqEnd,
+                        [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
+
+//===----------------------------------------------------------------------===//
+// Instructions
+//===----------------------------------------------------------------------===//
 
 // ALU operations
 
 defm OR   : ALUInst<OPC_OR, "OR", or>;
 defm AND  : ALUInst<OPC_AND, "AND", and>;
 defm XOR  : ALUInst<OPC_XOR, "XOR", xor>;
-defm ADD  : ALUInst<OPC_ADD, "ADD", add>;
+
+let isAdd = 1 in {
+    defm ADD  : ALUInst<OPC_ADD, "ADD", add>;
+}
+
 defm ADC  : ALUInst<OPC_ADC, "ADC", addc>;
 defm SUB  : ALUInst<OPC_SUB, "SUB", sub>;
 defm SBC  : ALUInst<OPC_SBC, "SBC", subc>;
@@ -30,11 +75,11 @@ defm ASHR : ALUInst<OPC_ASHR, "ASHR", sra>;
 
 defm MUL  : ALUInst<OPC_MUL, "MUL", mul>;
 
-defm CMP  : ALUInst2<OPC_CMP, "CMP", []>;
+defm CMP  : ALUInst2<OPC_CMP, "CMP", FRISCcmp>;
 
 // Memory operations
 
-defm LOAD : MemInst<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPRegs:$dst, (load addr:$addr))]>;
+defm LOAD : MemInst<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (load addr:$addr))]>;
 defm STORE: MemInst<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
 
 def PUSH  : StackInst<OPC_PUSH, "PUSH", (outs), (ins GPR:$reg), []>;
@@ -42,8 +87,54 @@ def POP   : StackInst<OPC_POP, "POP", (outs GPR:$reg), (ins), []>;
 
 // Control operations
 
-defm JP   :
-defm JR   :
-defm CALL :
-defm RET  :
-defm HALT :
+let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
+    defm JP     : CtrlInst<OPC_JP, "JP", br>;
+    defm JR     : CtrlInst<OPC_JR, "JR", brind;
+}
+
+let isBranch = 1, isTerminator = 1, Uses = [SR] in {
+    defm JPcc   : CtrlInstCC<OPC_JP, "JP", FRISCbrcc>;
+    //defm JRcc   : CtrlInstCC<OPC_JR, "JR", FRISCbrcc>;
+}
+
+let isCall = 1, Uses = [SP] in {
+    defm CALL   : CtrlInst<OPC_CALL, "CALL", FRISCcall>;
+    defm CALLcc : CtrlInstCC<OPC_CALL, "CALL", FRISCcall>;
+}
+
+// Return/Halt operations
+
+let isTerminator = 1, isReturn = 1, isBarrier = 1, Uses = [SP] in {
+    defm RET    : RetInst<OPC_RET, "RET", 0b00, [(FRISCretFlag)]>;
+    defm RETI    : RetInst<OPC_RET, "RET", 0b01, []>;
+    defm RETN    : RetInst<OPC_RET, "RET", 0b11, []>;
+}
+
+let isTerminator = 1 in {
+    defm HALT   : RetInst<OPC_HALT, "HALT", 0b00, []>;
+}
+
+// Move operations
+
+def MoveInst_rr : FRISCInst<OP_MOVE, > {
+
+}
+
+def MoveInst_ri : FRISCInst<OP_MOVE, > {
+    let isMoveImm = 1;
+
+}
+
+//===----------------------------------------------------------------------===//
+// Pseudo instructions
+//===----------------------------------------------------------------------===//
+
+let Defs = [SP], Uses = [SP] in {
+    def ADJCALLSTACKDOWN : FRISCPseudo<(outs), (ins CJGimm16:$amt),
+                                       "#ADJCALLSTACKDOWN",
+                                       [(FRISCcallseq_start timm:$amt)]>;
+    def ADJCALLSTACKUP : FRISCPseudo<(outs), (ins CJGimm16:$amt1, CJGimm16:$amt2),
+                                     "#ADJCALLSTACKUP",
+                                     [(FRISCcallseq_end timm:$amt1, timm:$amt2)]>;
+}
+
