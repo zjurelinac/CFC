@@ -308,6 +308,7 @@ set(LLVM_ALL_TARGETS
   ARM
   Sparc
   X86
+  FRISC
   )
 
 # List of targets with JIT support:
