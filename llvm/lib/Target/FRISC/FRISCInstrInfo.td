@@ -27,7 +27,7 @@ def SDT_FRISCBrCC       : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,    // ???
 def SDT_FRISCWrapper    : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                SDTCisPtrTy<0>]>;
 def SDT_FRISCCall         : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
-def SDT_FRISCCallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>]>;
+def SDT_FRISCCallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
 def SDT_FRISCCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
 
 //===----------------------------------------------------------------------===//
@@ -48,6 +48,21 @@ def FRISCcallseq_start :
 def FRISCcallseq_end :
                  SDNode<"ISD::CALLSEQ_END", SDT_FRISCCallSeqEnd,
                         [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
+
+/*def SDT_SPCallSeqStart : SDCallSeqStart<[ SDTCisVT<0, i32>,
+                                          SDTCisVT<1, i32> ]>;
+def SDT_SPCallSeqEnd   : SDCallSeqEnd<[ SDTCisVT<0, i32>,
+                                        SDTCisVT<1, i32> ]>;
+
+def callseq_start : SDNode<"ISD::CALLSEQ_START", SDT_SPCallSeqStart,
+                           [SDNPHasChain, SDNPOutGlue]>;
+def callseq_end   : SDNode<"ISD::CALLSEQ_END",   SDT_SPCallSeqEnd,
+                           [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
+
+def SDT_SPCall    : SDTypeProfile<0, -1, [SDTCisVT<0, i32>]>;
+def call          : SDNode<"SPISD::CALL", SDT_SPCall,
+                           [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
+                            SDNPVariadic]>;*/
 
 //===----------------------------------------------------------------------===//
 // Instructions
@@ -146,11 +161,11 @@ let isAsCheapAsAMove = 1 in {
 //===----------------------------------------------------------------------===//
 
 let Defs = [SP], Uses = [SP] in {
-    def ADJCALLSTACKDOWN : FRISCPseudo<(outs), (ins i32imm:$amt),
-                                       "# ADJCALLSTACKDOWN",
-                                       [(FRISCcallseq_start timm:$amt)]>;
+    def ADJCALLSTACKDOWN : FRISCPseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
+                                       "# ADJCALLSTACKDOWN $amt1, $amt2",
+                                       [(FRISCcallseq_start timm:$amt1, timm:$amt2)]>;
     def ADJCALLSTACKUP : FRISCPseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
-                                     "# ADJCALLSTACKUP",
+                                     "# ADJCALLSTACKUP, $amt1",
                                      [(FRISCcallseq_end timm:$amt1, timm:$amt2)]>;
 }
 
