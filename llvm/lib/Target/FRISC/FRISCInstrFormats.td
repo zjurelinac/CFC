@@ -165,20 +165,18 @@ class StackInst<FRISCOpcode opcode, string opstr, dag outs, dag ins, list<dag> p
 }
 
 // Memory instructions
-multiclass MemInst<FRISCOpcode opcode, string opstr, dag outs, dag ins, list<dag> pattern> {
-    def _ri : FRISCInst<opcode, outs, ins,
-                        !strconcat(opstr, "\t$dst, $addr"), pattern> {
-        bits<23> addr;
-        let Modifier = 1;
-        let Inst{22-0} = addr;
-    }
-    def _i : FRISCInst<opcode, (outs GPR:$dst), (ins Imm20:$addr),
-                        !strconcat(opstr, "\t$dst, ($addr)"), pattern> {
-        bits<20> addr;
-        let Modifier = 0;
-        let Inst{22-20} = 0;
-        let Inst{19-0} = addr;
-    }
+class MemInst_ri<FRISCOpcode opcode, string opstr, dag outs, dag ins, list<dag> pattern>
+        : FRISCInst<opcode, outs, ins, !strconcat(opstr, "\t$dst, $addr"), pattern> {
+    bits<23> addr;
+    let Modifier = 1;
+    let Inst{22-0} = addr;
+}
+class MemInst_i<FRISCOpcode opcode, string opstr, dag outs, dag ins, list<dag> pattern>
+        : FRISCInst<opcode, outs, ins, !strconcat(opstr, "\t$dst, $addr"), pattern> {
+    bits<20> addr;
+    let Modifier = 0;
+    let Inst{22-20} = 0;
+    let Inst{19-0} = addr;
 }
 
 // Control instructions

@@ -21,9 +21,9 @@ include "FRISCInstrFormats.td"
 def SDT_FRISCCmp        : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
 def SDT_FRISCBrCC       : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,    // ???
                                                SDTCisVT<1, i32>]>;
-def SDT_FRISCSelectCC   : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,      // ???
+/*def SDT_FRISCSelectCC   : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,      // ???
                                                SDTCisSameAs<1, 2>,
-                                               SDTCisVT<3, i32>]>;
+                                               SDTCisVT<3, i32>]>;*/
 def SDT_FRISCWrapper    : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                SDTCisPtrTy<0>]>;
 def SDT_FRISCCall         : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
@@ -38,7 +38,7 @@ def FRISCretFlag : SDNode<"FRISCISD::RET_FLAG", SDTNone,
                      [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 def FRISCcmp     : SDNode<"FRISCISD::CMP", SDT_FRISCCmp, [SDNPOutGlue]>;
 def FRISCbrcc    : SDNode<"FRISCISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain, SDNPInGlue]>;  // ???
-def FRISCSelectCC: SDNode<"FRISCISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;        // ???
+//def FRISCSelectCC: SDNode<"FRISCISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;        // ???
 def FRISCWrapper : SDNode<"FRISCISD::Wrapper", SDT_FRISCWrapper>;
 def FRISCcall    : SDNode<"FRISCISD::CALL", SDT_FRISCCall,
                       [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue, SDNPVariadic]>;
@@ -80,11 +80,13 @@ let isCompare = 1 in {
 
 // Memory operations
 
-defm LOAD : MemInst<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (load addr:$addr))]>;
-defm STORE: MemInst<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
+def LOAD_i  : MemInst_i<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins Imm20:$addr), [(set GPR:$dst, (load addr:$addr))]>;
+def STORE_i : MemInst_i<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
+def LOAD_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (load addr:$addr))]>;
+def STORE_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins GPR:$dst, MemSrc:$addr), [(store GPR:$dst, addr:$addr)]>;
 
-def PUSH  : StackInst<OPC_PUSH, "PUSH", (outs), (ins GPR:$reg), []>;
-def POP   : StackInst<OPC_POP, "POP", (outs GPR:$reg), (ins), []>;
+def PUSH    : StackInst<OPC_PUSH, "PUSH", (outs), (ins GPR:$reg), []>;
+def POP     : StackInst<OPC_POP, "POP", (outs GPR:$reg), (ins), []>;
 
 // Control operations
 
