@@ -132,7 +132,7 @@ let Defs = [SR] in {
 
     multiclass ALUInst2<FRISCOpcode opcode, string opstr, SDNode opnode> {
         def _rr : FRISCInst<opcode, (outs), (ins GPR:$src1, GPR:$src2),
-                            !strconcat(opstr, "\t$dst, $src1, $src2"), [(opnode i32:$src1, i32:$src2), (implicit SR)]>{
+                            !strconcat(opstr, "\t$src1, $src2"), [(opnode i32:$src1, i32:$src2), (implicit SR)]>{
             bits<3> src1;
             bits<3> src2;
 
@@ -143,7 +143,7 @@ let Defs = [SR] in {
             let Inst{16-0} = 0;
         }
         def _ri : FRISCInst<opcode, (outs), (ins GPR:$src1, Imm20:$src2),
-                            !strconcat(opstr, "\t$dst, $src1, $src2"), [(opnode i32:$src1, i32:$src2), (implicit SR)]>{
+                            !strconcat(opstr, "\t$src1, $src2"), [(opnode i32:$src1, i32:$src2), (implicit SR)]>{
             bits<3> src1;
             bits<20> src2;
 
@@ -220,11 +220,11 @@ multiclass CtrlInstCC<FRISCOpcode opcode, string opstr, SDNode opnode> {
 
 
 multiclass RetInst<FRISCOpcode opcode, string opstr, bits<2> retType, list<dag> pattern> {
-    def _cc : FRISCInst<opcode, (outs), (ins CondCode:$cc), !strconcat(opstr, "_$cc"), pattern> {
+    /*def _cc : FRISCInst<opcode, (outs), (ins CondCode:$cc), !strconcat(opstr, "_$cc"), pattern> {
         bits<4> cc;
         let Inst{25-22} = cc;
         let Inst{1-0} = retType;
-    }
+    }*/
 
     def _uc : FRISCInst<opcode, (outs), (ins), opstr, pattern> {
         let Inst{25-22} = 0;
