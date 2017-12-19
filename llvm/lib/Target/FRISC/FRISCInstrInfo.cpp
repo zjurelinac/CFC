@@ -38,7 +38,7 @@ void FRISCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                   const DebugLoc &DL, unsigned DestReg,
                                   unsigned SrcReg, bool KillSrc) const {
 
-  if (FRISC::GPRegsRegClass.contains(DestReg, SrcReg)) {
+  if (FRISC::GPRRegClass.contains(DestReg, SrcReg)) {
       BuildMI(MBB, I, DL, get(FRISC::MOVE_rr), DestReg)
         .addReg(SrcReg, getKillRegState(KillSrc));
   }
@@ -55,8 +55,8 @@ void FRISCInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                        const TargetRegisterInfo *TRI) const {
   DebugLoc DL;
   if (MI != MBB.end()) DL = MI->getDebugLoc();
-  MachineFunction &MF = *MBB.getParent();
-  MachineFrameInfo &MFI = MF.getFrameInfo();
+  //MachineFunction &MF = *MBB.getParent();
+  //MachineFrameInfo &MFI = MF.getFrameInfo();
 
   BuildMI(MBB, MI, DL, get(FRISC::PUSH))
     .addReg(SrcReg, getKillRegState(isKill));
@@ -69,8 +69,8 @@ void FRISCInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                         const TargetRegisterInfo *TRI) const{
   DebugLoc DL;
   if (MI != MBB.end()) DL = MI->getDebugLoc();
-  MachineFunction &MF = *MBB.getParent();
-  MachineFrameInfo &MFI = MF.getFrameInfo();
+  //MachineFunction &MF = *MBB.getParent();
+  //MachineFrameInfo &MFI = MF.getFrameInfo();
 
   BuildMI(MBB, MI, DL, get(FRISC::POP))
     .addReg(DestReg, getDefRegState(true));
@@ -97,9 +97,9 @@ reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
   case FRISCCC::COND_Z:
     CC = FRISCCC::COND_NZ;
     break;
-  case FRISCCC::COND_UGE:
+  /*case FRISCCC::COND_UGE:
     CC = FRISCCC::COND_ULT;
-    break;
+    break;*/
   case FRISCCC::COND_SGE:
     CC = FRISCCC::COND_SLT;
     break;
@@ -115,15 +115,15 @@ reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
   case FRISCCC::COND_NZ:
     CC = FRISCCC::COND_Z;
     break;
-  case FRISCCC::COND_EQ:
+  /*case FRISCCC::COND_EQ:
     CC = FRISCCC::COND_NE;
-    break;
-  case FRISCCC::COND_NE:
+    break;*/
+  /*case FRISCCC::COND_NE:
     CC = FRISCCC::COND_EQ;
-    break;
-  case FRISCCC::COND_ULT:
+    break;*/
+  /*case FRISCCC::COND_ULT:
     CC = FRISCCC::COND_UGE;
-    break;
+    break;*/
   case FRISCCC::COND_SLT:
     CC = FRISCCC::COND_SGE;
     break;
@@ -139,15 +139,12 @@ reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
   case FRISCCC::COND_SGT:
     CC = FRISCCC::COND_SLE;
     break;
-  case FRISCCC::COND_ULE:
-    CC = FRISCCC::COND_UGT;
-    break;
-  case FRISCCC::COND_M:
+  /*case FRISCCC::COND_M:
     CC = FRISCCC::COND_P;
-    break;
-  case FRISCCC::COND_P:
+    break;*/
+  /*case FRISCCC::COND_P:
     CC = FRISCCC::COND_M;
-    break;
+    break;*/
   }
 
   Cond[0].setImm(CC);
@@ -190,7 +187,7 @@ bool FRISCInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
       return true;
 
     // Handle unconditional branches.     // TODO: Detect unconditional branches - JP_i, JR_i, JP_r, JR_r
-    if (I->getOpcode() == FRISC::JP_i || I->getOpcode() == FRISC::JR_i || I->getOpcode() == FRISC::JP_r || I->getOpcode() == FRISC::JR_r) {
+    if (I->getOpcode() == FRISC::JP_i) {
       if (!AllowModify) {
         TBB = I->getOperand(0).getMBB();
         continue;
@@ -216,7 +213,7 @@ bool FRISCInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
     }
 
     // Handle conditional branches.
-    assert((I->getOpcode() == FRISC::JPcc_i || I->getOpcode() == FRISC::JPcc_r || I->getOpcode() == FRISC::JRcc_i || I->getOpcode() == FRISC::JRcc_r ) && "Invalid conditional branch");
+    assert((I->getOpcode() == FRISC::JPcc_i) && "Invalid conditional branch");
     FRISCCC::CondCodes BranchCode =
       static_cast<FRISCCC::CondCodes>(I->getOperand(1).getImm());
     if (BranchCode == FRISCCC::COND_INVALID)
@@ -263,13 +260,7 @@ unsigned FRISCInstrInfo::removeBranch(MachineBasicBlock &MBB,
     if (I->isDebugValue())
       continue;
     if (I->getOpcode() != FRISC::JP_i &&
-        I->getOpcode() != FRISC::JR_i &&
-        I->getOpcode() != FRISC::JPcc_i &&
-        I->getOpcode() != FRISC::JRcc_i &&
-        I->getOpcode() != FRISC::JP_r &&
-        I->getOpcode() != FRISC::JR_r &&
-        I->getOpcode() != FRISC::JPcc_r &&
-        I->getOpcode() != FRISC::JRcc_r
+        I->getOpcode() != FRISC::JPcc_i
         )
       break;
     // Remove the branch.

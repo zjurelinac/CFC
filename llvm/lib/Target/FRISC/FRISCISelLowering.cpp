@@ -40,7 +40,7 @@ const char *FRISCTargetLowering::getTargetNodeName(unsigned Opcode) const {
     case FRISCISD::CMP:                     return "FRISCISD::CMP";
     case FRISCISD::RET_FLAG:                return "FRISCISD::RET_FLAG";
     case FRISCISD::BR_CC:                   return "FRISCISD::BR_CC";
-    case CJGISD::Wrapper:                   return "CJGISD::Wrapper";
+    case FRISCISD::Wrapper:                 return "FRISCISD::Wrapper";
     case FRISCISD::CALL:                    return "FRISCISD::CALL";
   }
   return nullptr;
@@ -51,7 +51,7 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM,
     : TargetLowering(TM) {
 
   // Set up the register classes.
-  addRegisterClass(MVT::i32, &FRISC::GPRegsRegClass);
+  addRegisterClass(MVT::i32, &FRISC::GPRRegClass);
 
   // Compute derived properties from the register classes
   computeRegisterProperties(STI.getRegisterInfo());
@@ -125,7 +125,7 @@ SDValue FRISCTargetLowering::LowerFormalArguments(
       switch (RegVT.getSimpleVT().SimpleTy) {
       case MVT::i32: {
         const unsigned VReg =
-            RegInfo.createVirtualRegister(&FRISC::GPRegsRegClass);
+            RegInfo.createVirtualRegister(&FRISC::GPRRegClass);
         RegInfo.addLiveIn(VA.getLocReg(), VReg);
         SDValue ArgIn = DAG.getCopyFromReg(Chain, DL, VReg, RegVT);
 
@@ -530,8 +530,7 @@ SDValue FRISCTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   unsigned NumBytes = CCInfo.getNextStackOffset();
   auto PtrVT = getPointerTy(DAG.getDataLayout());
 
-  Chain = DAG.getCALLSEQ_START(Chain,
-                               DAG.getConstant(NumBytes, dl, PtrVT, true), dl);
+  Chain = DAG.getCALLSEQ_START(Chain, NumBytes, 0, dl);
 
   SmallVector<std::pair<unsigned, SDValue>, 4> RegsToPass;
   SmallVector<SDValue, 12> MemOpChains;

@@ -14,20 +14,58 @@
 //===----------------------------------------------------------------------===//
 #include "FRISC.h"
 #include "FRISCMCInstLower.h"
-#include "MCTargetDesc/FRISCBaseInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
+void FRISCMCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
+  OutMI.setOpcode(MI->getOpcode());
+
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+    const MachineOperand &MO = MI->getOperand(i);
+
+    MCOperand MCOp;
+    switch (MO.getType()) {
+    default:
+      MI->dump();
+      llvm_unreachable("FRISCMCInstLower::Lower() unknown operand type");
+    case MachineOperand::MO_Register:
+      // Ignore all implicit register operands.
+      if (MO.isImplicit()) {
+        continue;
+      }
+      MCOp = MCOperand::createReg(MO.getReg());
+      break;
+    case MachineOperand::MO_Immediate:
+      MCOp = MCOperand::createImm(MO.getImm());
+      break;
+    case MachineOperand::MO_MachineBasicBlock:
+      MCOp = MCOperand::createExpr(MCSymbolRefExpr::create(
+                         MO.getMBB()->getSymbol(), Ctx));
+      break;
+    case MachineOperand::MO_GlobalAddress:
+      MCOp = LowerSymbolOperand(MO, GetGlobalAddressSymbol(MO));
+      break;
+    case MachineOperand::MO_RegisterMask:
+      continue;
+    }
+    OutMI.addOperand(MCOp);
+  }
+}
+
 MCOperand FRISCMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
                                              MCSymbol *Sym) const {
+  // FIXME: We would like an efficient form for this, so we don't have to do a
+  // lot of extra uniquing.
   const MCExpr *Expr = MCSymbolRefExpr::create(Sym, Ctx);
 
   switch (MO.getTargetFlags()) {
@@ -39,47 +77,7 @@ MCOperand FRISCMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
     Expr = MCBinaryExpr::createAdd(Expr,
                                    MCConstantExpr::create(MO.getOffset(), Ctx),
                                    Ctx);
-
   return MCOperand::createExpr(Expr);
-}
-
-MCOperand FRISCMCInstLower::LowerOperand(const MachineOperand &MO,
-                                       unsigned offset) const {
-  MachineOperandType MOTy = MO.getType();
-
-  switch (MOTy) {
-    default:
-      llvm_unreachable("CJGMCInstLower::Lower() unknown operand type");
-    case MachineOperand::MO_Register:
-      // Ignore all implicit register operands.
-      if (MO.isImplicit()) {
-        break;
-      }
-      return MCOperand::createReg(MO.getReg());
-    case MachineOperand::MO_Immediate:
-      return MCOperand::createImm(MO.getImm());
-    case MachineOperand::MO_GlobalAddress:
-      return LowerSymbolOperand(MO, GetGlobalAddressSymbol(MO));
-    case MachineOperand::MO_MachineBasicBlock:
-      return MCOperand::createExpr(MCSymbolRefExpr::create(
-                         MO.getMBB()->getSymbol(), Ctx));
-    case MachineOperand::MO_RegisterMask:
-      break;
-  }
-
-  return MCOperand();
-}
-
-void FRISCMCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
-  OutMI.setOpcode(MI->getOpcode());
-
-  for (auto &MO : MI->operands()) {
-    const MCOperand MCOp = LowerOperand(MO);
-
-    if (MCOp.isValid()) {
-      OutMI.addOperand(MCOp);
-    }
-  }
 }
 
 MCSymbol

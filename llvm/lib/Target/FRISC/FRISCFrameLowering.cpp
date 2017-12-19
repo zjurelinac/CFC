@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "FRISC.h"
 #include "FRISCFrameLowering.h"
 #include "FRISCInstrInfo.h"
 #include "FRISCMachineFunctionInfo.h"

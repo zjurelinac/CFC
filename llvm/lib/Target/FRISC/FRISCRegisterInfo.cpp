@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "FRISCRegisterInfo.h"
 #include "FRISC.h"
+#include "FRISCRegisterInfo.h"
 #include "FRISCSubtarget.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -64,8 +64,8 @@ void FRISCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   switch (MI.getOpcode()) {
     default:
       llvm_unreachable("Instruction not supported");
-    case FRISC::LOAD:
-    case FRISC::STORE:
+    case FRISC::LOAD_i:
+    case FRISC::STORE_i:
     case FRISC::ADD_ri:
       ImmOpIdx = FIOperandNum + 1;
       break;

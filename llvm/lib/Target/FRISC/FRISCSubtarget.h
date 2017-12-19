@@ -36,8 +36,8 @@ class FRISCSubtarget : public FRISCGenSubtargetInfo {
 private:
   const DataLayout DL;       // Calculates type size & alignment.
   FRISCInstrInfo InstrInfo;
-  FRISCTargetLowering TLInfo;
   FRISCFrameLowering FrameLowering;
+  FRISCTargetLowering TLInfo;
 
 public:
   /// This constructor initializes the data members to match that

@@ -21,9 +21,6 @@ include "FRISCInstrFormats.td"
 def SDT_FRISCCmp        : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
 def SDT_FRISCBrCC       : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,    // ???
                                                SDTCisVT<1, i32>]>;
-/*def SDT_FRISCSelectCC   : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,      // ???
-                                               SDTCisSameAs<1, 2>,
-                                               SDTCisVT<3, i32>]>;*/
 def SDT_FRISCWrapper    : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                SDTCisPtrTy<0>]>;
 def SDT_FRISCCall         : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
@@ -38,7 +35,6 @@ def FRISCretFlag : SDNode<"FRISCISD::RET_FLAG", SDTNone,
                      [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 def FRISCcmp     : SDNode<"FRISCISD::CMP", SDT_FRISCCmp, [SDNPOutGlue]>;
 def FRISCbrcc    : SDNode<"FRISCISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain, SDNPInGlue]>;  // ???
-//def FRISCSelectCC: SDNode<"FRISCISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;        // ???
 def FRISCWrapper : SDNode<"FRISCISD::Wrapper", SDT_FRISCWrapper>;
 def FRISCcall    : SDNode<"FRISCISD::CALL", SDT_FRISCCall,
                       [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue, SDNPVariadic]>;

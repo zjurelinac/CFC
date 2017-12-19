@@ -15,7 +15,7 @@
 #ifndef TARGET_FRISC_H
 #define TARGET_FRISC_H
 
-//#include "MCTargetDesc/FRISCMCTargetDesc.h" -> todo
+#include "MCTargetDesc/FRISCMCTargetDesc.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace FRISCCC {

@@ -72,6 +72,7 @@ class FRISCPseudo<dag outs, dag ins, string asmstr, list<dag> pattern>
 
 def Imm20 : Operand<i32>, ImmLeaf<i32, [{ return Imm >= -524288 && Imm <= 524287;}]>;
 
+// Short jump targets have OtherVT type and are printed as pcrel imm values.
 def JMPTarget : Operand<OtherVT> { let PrintMethod = "printPCRelImm"; }
 
 def CondCode : Operand<i32> { let PrintMethod = "printCondCode"; }
@@ -82,16 +83,11 @@ def MemSrc : Operand<i32> {
     let EncoderMethod = "getMemSrcValue";
 }
 
-/*// Pointer memory type
-def memptr : Operand<iPTR> {
+// Pointer memory type
+/*def memptr : Operand<iPTR> {
   let PrintMethod = "printMemSrcOperand";
   let EncoderMethod = "getMemSrcValue";
   let MIOperandInfo = (ops GPRegs, CJGimm16);
-}
-
-// Short jump targets have OtherVT type and are printed as pcrel imm values.
-def jmptarget : Operand<OtherVT> {
-  let PrintMethod = "printPCRelImmOperand";
 }*/
 
 //===----------------------------------------------------------------------===//
@@ -104,7 +100,7 @@ def addr : ComplexPattern<iPTR, 2, "SelectAddr", [], []>;
 // FRISC instruction formats
 //===----------------------------------------------------------------------===//
 
-// ALU instructions -- TODO: Implicit SR?
+// ALU instructions
 let Defs = [SR] in {
     multiclass ALUInst<FRISCOpcode opcode, string opstr, SDNode opnode> {
         def _rr : FRISCInst<opcode, (outs GPR:$dst), (ins GPR:$src1, GPR:$src2),
