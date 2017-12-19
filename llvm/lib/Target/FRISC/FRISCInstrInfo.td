@@ -49,21 +49,6 @@ def FRISCcallseq_end :
                  SDNode<"ISD::CALLSEQ_END", SDT_FRISCCallSeqEnd,
                         [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
-/*def SDT_SPCallSeqStart : SDCallSeqStart<[ SDTCisVT<0, i32>,
-                                          SDTCisVT<1, i32> ]>;
-def SDT_SPCallSeqEnd   : SDCallSeqEnd<[ SDTCisVT<0, i32>,
-                                        SDTCisVT<1, i32> ]>;
-
-def callseq_start : SDNode<"ISD::CALLSEQ_START", SDT_SPCallSeqStart,
-                           [SDNPHasChain, SDNPOutGlue]>;
-def callseq_end   : SDNode<"ISD::CALLSEQ_END",   SDT_SPCallSeqEnd,
-                           [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
-
-def SDT_SPCall    : SDTypeProfile<0, -1, [SDTCisVT<0, i32>]>;
-def call          : SDNode<"SPISD::CALL", SDT_SPCall,
-                           [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
-                            SDNPVariadic]>;*/
-
 //===----------------------------------------------------------------------===//
 // Instructions
 //===----------------------------------------------------------------------===//
@@ -106,18 +91,19 @@ def POP     : StackInst<OPC_POP, "POP", (outs GPR:$reg), (ins), []>;
 // Control operations
 
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
-    defm JP     : CtrlInst<OPC_JP, "JP", br>;
-    defm JR     : CtrlInst<OPC_JR, "JR", brind>;
+    def JP_i    : CtrlInst_i<OPC_JP, (outs), (ins JMPTarget:$addr), "JP\t$addr", [(br bb:$addr)]>;
+}
+
+let isBranch = 1, isIndirectBranch = 1, isTerminator = 1, isBarrier = 1 in {
+    //def JR_i     : CtrlInst<OPC_JR, "JR", brind>;
 }
 
 let isBranch = 1, isTerminator = 1, Uses = [SR] in {
-    defm JPcc   : CtrlInstCC<OPC_JP, "JP", FRISCbrcc>;
-    //defm JRcc   : CtrlInstCC<OPC_JR, "JR", FRISCbrcc>;
+    def JPcc_i    : CtrlInst_i<OPC_JP, (outs), (ins JMPTarget:$addr, CondCode:$cc), "JP_$cc\t$addr", [(FRISCbrcc bb:$addr, imm:$cc)]>;
 }
 
 let isCall = 1, Uses = [SP] in {
-    defm CALL   : CtrlInst<OPC_CALL, "CALL", FRISCcall>;
-    defm CALLcc : CtrlInstCC<OPC_CALL, "CALL", FRISCcall>;
+    def CALL_i  : CtrlInst_i<OPC_CALL, (outs), (ins Imm20:$addr), "CALL\t($addr)", [(FRISCcall imm:$addr)]>;
 }
 
 // Return/Halt operations

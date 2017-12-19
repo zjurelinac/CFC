@@ -33,9 +33,6 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
@@ -61,8 +58,11 @@
 #include "llvm/Support/LowLevelTypeImpl.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetIntrinsicInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -73,12 +73,10 @@
 
 using namespace llvm;
 
-static cl::opt<int> PrintRegMaskNumRegs(
-    "print-regmask-num-regs",
-    cl::desc("Number of registers to limit to when "
-             "printing regmask operands in IR dumps. "
-             "unlimited = -1"),
-    cl::init(32), cl::Hidden);
+static cl::opt<bool> PrintWholeRegMask(
+    "print-whole-regmask",
+    cl::desc("Print the full contents of regmask operands in IR dumps"),
+    cl::init(true), cl::Hidden);
 
 //===----------------------------------------------------------------------===//
 // MachineOperand Implementation
@@ -213,19 +211,6 @@ void MachineOperand::ChangeToFrameIndex(int Idx) {
   setIndex(Idx);
 }
 
-void MachineOperand::ChangeToTargetIndex(unsigned Idx, int64_t Offset,
-                                         unsigned char TargetFlags) {
-  assert((!isReg() || !isTied()) &&
-         "Cannot change a tied operand into a FrameIndex");
-
-  removeRegFromUses();
-
-  OpKind = MO_TargetIndex;
-  setIndex(Idx);
-  setOffset(Offset);
-  setTargetFlags(TargetFlags);
-}
-
 /// ChangeToRegister - Replace this operand with a new register operand of
 /// the specified value.  If an operand is known to be an register already,
 /// the setReg method should be used.
@@ -311,7 +296,7 @@ bool MachineOperand::isIdenticalTo(const MachineOperand &Other) const {
       return true;
 
     // Calculate the size of the RegMask
-    const MachineFunction *MF = getParent()->getMF();
+    const MachineFunction *MF = getParent()->getParent()->getParent();
     const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
     unsigned RegMaskSize = (TRI->getNumRegs() + 31) / 32;
 
@@ -518,8 +503,7 @@ void MachineOperand::print(raw_ostream &OS, ModuleSlotTracker &MST,
       unsigned MaskWord = i / 32;
       unsigned MaskBit = i % 32;
       if (getRegMask()[MaskWord] & (1 << MaskBit)) {
-        if (PrintRegMaskNumRegs < 0 ||
-            NumRegsEmitted <= static_cast<unsigned>(PrintRegMaskNumRegs)) {
+        if (PrintWholeRegMask || NumRegsEmitted <= 10) {
           OS << " " << PrintReg(i, TRI);
           NumRegsEmitted++;
         }
@@ -579,11 +563,7 @@ LLVM_DUMP_METHOD void MachineOperand::dump() const {
 /// getAddrSpace - Return the LLVM IR address space number that this pointer
 /// points into.
 unsigned MachinePointerInfo::getAddrSpace() const {
-  if (V.isNull()) return 0;
-
-  if (V.is<const PseudoSourceValue*>())
-    return V.get<const PseudoSourceValue*>()->getAddressSpace();
-
+  if (V.isNull() || V.is<const PseudoSourceValue*>()) return 0;
   return cast<PointerType>(V.get<const Value*>()->getType())->getAddressSpace();
 }
 
@@ -624,9 +604,8 @@ MachinePointerInfo MachinePointerInfo::getGOT(MachineFunction &MF) {
 }
 
 MachinePointerInfo MachinePointerInfo::getStack(MachineFunction &MF,
-                                                int64_t Offset,
-                                                uint8_t ID) {
-  return MachinePointerInfo(MF.getPSVManager().getStack(), Offset,ID);
+                                                int64_t Offset) {
+  return MachinePointerInfo(MF.getPSVManager().getStack(), Offset);
 }
 
 MachineMemOperand::MachineMemOperand(MachinePointerInfo ptrinfo, Flags f,
@@ -763,21 +742,6 @@ void MachineMemOperand::print(raw_ostream &OS, ModuleSlotTracker &MST) const {
     else
       OS << "<unknown>";
     OS << ")";
-  }
-
-  if (const MDNode *Ranges = getRanges()) {
-    unsigned NumRanges = Ranges->getNumOperands();
-    if (NumRanges != 0) {
-      OS << "(ranges=";
-
-      for (unsigned I = 0; I != NumRanges; ++I) {
-        Ranges->getOperand(I)->printAsOperand(OS, MST);
-        if (I != NumRanges - 1)
-          OS << ',';
-      }
-
-      OS << ')';
-    }
   }
 
   if (isNonTemporal())
@@ -1070,7 +1034,7 @@ MachineInstr::mergeMemRefsWith(const MachineInstr& Other) {
   if (CombinedNumMemRefs != uint8_t(CombinedNumMemRefs))
     return std::make_pair(nullptr, 0);
 
-  MachineFunction *MF = getMF();
+  MachineFunction *MF = getParent()->getParent();
   mmo_iterator MemBegin = MF->allocateMemRefsArray(CombinedNumMemRefs);
   mmo_iterator MemEnd = std::copy(memoperands_begin(), memoperands_end(),
                                   MemBegin);
@@ -1144,9 +1108,9 @@ bool MachineInstr::isIdenticalTo(const MachineInstr &Other,
       if (Check == IgnoreDefs)
         continue;
       else if (Check == IgnoreVRegDefs) {
-        if (!TargetRegisterInfo::isVirtualRegister(MO.getReg()) ||
-            !TargetRegisterInfo::isVirtualRegister(OMO.getReg()))
-          if (!MO.isIdenticalTo(OMO))
+        if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()) ||
+            TargetRegisterInfo::isPhysicalRegister(OMO.getReg()))
+          if (MO.getReg() != OMO.getReg())
             return false;
       } else {
         if (!MO.isIdenticalTo(OMO))
@@ -1167,10 +1131,6 @@ bool MachineInstr::isIdenticalTo(const MachineInstr &Other,
         getDebugLoc() != Other.getDebugLoc())
       return false;
   return true;
-}
-
-const MachineFunction *MachineInstr::getMF() const {
-  return getParent()->getParent();
 }
 
 MachineInstr *MachineInstr::removeFromParent() {
@@ -1322,8 +1282,8 @@ MachineInstr::getRegClassConstraint(unsigned OpIdx,
                                     const TargetInstrInfo *TII,
                                     const TargetRegisterInfo *TRI) const {
   assert(getParent() && "Can't have an MBB reference here!");
-  assert(getMF() && "Can't have an MF reference here!");
-  const MachineFunction &MF = *getMF();
+  assert(getParent()->getParent() && "Can't have an MF reference here!");
+  const MachineFunction &MF = *getParent()->getParent();
 
   // Most opcodes have fixed constraints in their MCInstrDesc.
   if (!isInlineAsm())
@@ -1659,7 +1619,7 @@ bool MachineInstr::isSafeToMove(AliasAnalysis *AA, bool &SawStore) const {
   // Treat volatile loads as stores. This is not strictly necessary for
   // volatiles, but it is required for atomic loads. It is not allowed to move
   // a load across an atomic load with Ordering > Monotonic.
-  if (mayStore() || isCall() || isPHI() ||
+  if (mayStore() || isCall() ||
       (mayLoad() && hasOrderedMemoryRef())) {
     SawStore = true;
     return false;
@@ -1684,9 +1644,8 @@ bool MachineInstr::isSafeToMove(AliasAnalysis *AA, bool &SawStore) const {
 
 bool MachineInstr::mayAlias(AliasAnalysis *AA, MachineInstr &Other,
                             bool UseTBAA) {
-  const MachineFunction *MF = getMF();
+  const MachineFunction *MF = getParent()->getParent();
   const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
-  const MachineFrameInfo &MFI = MF->getFrameInfo();
 
   // If neither instruction stores to memory, they can't alias in any
   // meaningful way, even if they read from the same address.
@@ -1697,12 +1656,18 @@ bool MachineInstr::mayAlias(AliasAnalysis *AA, MachineInstr &Other,
   if (TII->areMemAccessesTriviallyDisjoint(*this, Other, AA))
     return false;
 
+  if (!AA)
+    return true;
+
   // FIXME: Need to handle multiple memory operands to support all targets.
   if (!hasOneMemOperand() || !Other.hasOneMemOperand())
     return true;
 
   MachineMemOperand *MMOa = *memoperands_begin();
   MachineMemOperand *MMOb = *Other.memoperands_begin();
+
+  if (!MMOa->getValue() || !MMOb->getValue())
+    return true;
 
   // The following interface to AA is fashioned after DAGCombiner::isAlias
   // and operates with MachineMemOperand offset with some important
@@ -1716,53 +1681,22 @@ bool MachineInstr::mayAlias(AliasAnalysis *AA, MachineInstr &Other,
   //   - There should never be any negative offsets here.
   //
   // FIXME: Modify API to hide this math from "user"
-  // Even before we go to AA we can reason locally about some
+  // FIXME: Even before we go to AA we can reason locally about some
   // memory objects. It can save compile time, and possibly catch some
   // corner cases not currently covered.
 
-  int64_t OffsetA = MMOa->getOffset();
-  int64_t OffsetB = MMOb->getOffset();
+  assert((MMOa->getOffset() >= 0) && "Negative MachineMemOperand offset");
+  assert((MMOb->getOffset() >= 0) && "Negative MachineMemOperand offset");
 
-  int64_t MinOffset = std::min(OffsetA, OffsetB);
-  int64_t WidthA = MMOa->getSize();
-  int64_t WidthB = MMOb->getSize();
-  const Value *ValA = MMOa->getValue();
-  const Value *ValB = MMOb->getValue();
-  bool SameVal = (ValA && ValB && (ValA == ValB));
-  if (!SameVal) {
-    const PseudoSourceValue *PSVa = MMOa->getPseudoValue();
-    const PseudoSourceValue *PSVb = MMOb->getPseudoValue();
-    if (PSVa && ValB && !PSVa->mayAlias(&MFI))
-      return false;
-    if (PSVb && ValA && !PSVb->mayAlias(&MFI))
-      return false;
-    if (PSVa && PSVb && (PSVa == PSVb))
-      SameVal = true;
-  }
+  int64_t MinOffset = std::min(MMOa->getOffset(), MMOb->getOffset());
+  int64_t Overlapa = MMOa->getSize() + MMOa->getOffset() - MinOffset;
+  int64_t Overlapb = MMOb->getSize() + MMOb->getOffset() - MinOffset;
 
-  if (SameVal) {
-    int64_t MaxOffset = std::max(OffsetA, OffsetB);
-    int64_t LowWidth = (MinOffset == OffsetA) ? WidthA : WidthB;
-    return (MinOffset + LowWidth > MaxOffset);
-  }
-
-  if (!AA)
-    return true;
-
-  if (!ValA || !ValB)
-    return true;
-
-  assert((OffsetA >= 0) && "Negative MachineMemOperand offset");
-  assert((OffsetB >= 0) && "Negative MachineMemOperand offset");
-
-  int64_t Overlapa = WidthA + OffsetA - MinOffset;
-  int64_t Overlapb = WidthB + OffsetB - MinOffset;
-
-  AliasResult AAResult = AA->alias(
-      MemoryLocation(ValA, Overlapa,
-                     UseTBAA ? MMOa->getAAInfo() : AAMDNodes()),
-      MemoryLocation(ValB, Overlapb,
-                     UseTBAA ? MMOb->getAAInfo() : AAMDNodes()));
+  AliasResult AAResult =
+      AA->alias(MemoryLocation(MMOa->getValue(), Overlapa,
+                               UseTBAA ? MMOa->getAAInfo() : AAMDNodes()),
+                MemoryLocation(MMOb->getValue(), Overlapb,
+                               UseTBAA ? MMOb->getAAInfo() : AAMDNodes()));
 
   return (AAResult != NoAlias);
 }
@@ -2394,8 +2328,8 @@ void MachineInstr::emitError(StringRef Msg) const {
 
 MachineInstrBuilder llvm::BuildMI(MachineFunction &MF, const DebugLoc &DL,
                                   const MCInstrDesc &MCID, bool IsIndirect,
-                                  unsigned Reg, const MDNode *Variable,
-                                  const MDNode *Expr) {
+                                  unsigned Reg, unsigned Offset,
+                                  const MDNode *Variable, const MDNode *Expr) {
   assert(isa<DILocalVariable>(Variable) && "not a variable");
   assert(cast<DIExpression>(Expr)->isValid() && "not an expression");
   assert(cast<DILocalVariable>(Variable)->isValidLocationForIntrinsic(DL) &&
@@ -2403,60 +2337,53 @@ MachineInstrBuilder llvm::BuildMI(MachineFunction &MF, const DebugLoc &DL,
   if (IsIndirect)
     return BuildMI(MF, DL, MCID)
         .addReg(Reg, RegState::Debug)
-        .addImm(0U)
+        .addImm(Offset)
         .addMetadata(Variable)
         .addMetadata(Expr);
-  else
+  else {
+    assert(Offset == 0 && "A direct address cannot have an offset.");
     return BuildMI(MF, DL, MCID)
         .addReg(Reg, RegState::Debug)
         .addReg(0U, RegState::Debug)
         .addMetadata(Variable)
         .addMetadata(Expr);
+  }
 }
 
 MachineInstrBuilder llvm::BuildMI(MachineBasicBlock &BB,
                                   MachineBasicBlock::iterator I,
                                   const DebugLoc &DL, const MCInstrDesc &MCID,
                                   bool IsIndirect, unsigned Reg,
-                                  const MDNode *Variable, const MDNode *Expr) {
+                                  unsigned Offset, const MDNode *Variable,
+                                  const MDNode *Expr) {
   assert(isa<DILocalVariable>(Variable) && "not a variable");
   assert(cast<DIExpression>(Expr)->isValid() && "not an expression");
   MachineFunction &MF = *BB.getParent();
-  MachineInstr *MI = BuildMI(MF, DL, MCID, IsIndirect, Reg, Variable, Expr);
+  MachineInstr *MI =
+      BuildMI(MF, DL, MCID, IsIndirect, Reg, Offset, Variable, Expr);
   BB.insert(I, MI);
   return MachineInstrBuilder(MF, MI);
-}
-
-/// Compute the new DIExpression to use with a DBG_VALUE for a spill slot.
-/// This prepends DW_OP_deref when spilling an indirect DBG_VALUE.
-static const DIExpression *computeExprForSpill(const MachineInstr &MI) {
-  assert(MI.getOperand(0).isReg() && "can't spill non-register");
-  assert(MI.getDebugVariable()->isValidLocationForIntrinsic(MI.getDebugLoc()) &&
-         "Expected inlined-at fields to agree");
-
-  const DIExpression *Expr = MI.getDebugExpression();
-  if (MI.isIndirectDebugValue()) {
-    assert(MI.getOperand(1).getImm() == 0 && "DBG_VALUE with nonzero offset");
-    Expr = DIExpression::prepend(Expr, DIExpression::WithDeref);
-  }
-  return Expr;
 }
 
 MachineInstr *llvm::buildDbgValueForSpill(MachineBasicBlock &BB,
                                           MachineBasicBlock::iterator I,
                                           const MachineInstr &Orig,
                                           int FrameIndex) {
-  const DIExpression *Expr = computeExprForSpill(Orig);
-  return BuildMI(BB, I, Orig.getDebugLoc(), Orig.getDesc())
+  const MDNode *Var = Orig.getDebugVariable();
+  const auto *Expr = cast_or_null<DIExpression>(Orig.getDebugExpression());
+  bool IsIndirect = Orig.isIndirectDebugValue();
+  uint64_t Offset = IsIndirect ? Orig.getOperand(1).getImm() : 0;
+  DebugLoc DL = Orig.getDebugLoc();
+  assert(cast<DILocalVariable>(Var)->isValidLocationForIntrinsic(DL) &&
+         "Expected inlined-at fields to agree");
+  // If the DBG_VALUE already was a memory location, add an extra
+  // DW_OP_deref. Otherwise just turning this from a register into a
+  // memory/indirect location is sufficient.
+  if (IsIndirect)
+    Expr = DIExpression::prepend(Expr, DIExpression::WithDeref);
+  return BuildMI(BB, I, DL, Orig.getDesc())
       .addFrameIndex(FrameIndex)
-      .addImm(0U)
-      .addMetadata(Orig.getDebugVariable())
+      .addImm(Offset)
+      .addMetadata(Var)
       .addMetadata(Expr);
-}
-
-void llvm::updateDbgValueForSpill(MachineInstr &Orig, int FrameIndex) {
-  const DIExpression *Expr = computeExprForSpill(Orig);
-  Orig.getOperand(0).ChangeToFrameIndex(FrameIndex);
-  Orig.getOperand(1).ChangeToImmediate(0U);
-  Orig.getOperand(3).setMetadata(Expr);
 }

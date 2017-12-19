@@ -17,8 +17,7 @@
 
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/Support/MathExtras.h"
+#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetOptions.h"
 
 namespace llvm {
@@ -215,7 +214,7 @@ namespace llvm {
       // FP vector get exponent.
       FGETEXP_RND, FGETEXPS_RND,
       // Extract Normalized Mantissas.
-      VGETMANT, VGETMANT_RND, VGETMANTS, VGETMANTS_RND,
+      VGETMANT, VGETMANTS,
       // FP Scale.
       SCALEF,
       SCALEFS,
@@ -255,9 +254,7 @@ namespace llvm {
       /// Note that these typically require refinement
       /// in order to obtain suitable precision.
       FRSQRT, FRCP,
-
-      // AVX-512 reciprocal approximations with a little more precision.
-      RSQRT14, RSQRT14S, RCP14, RCP14S,
+      FRSQRTS, FRCPS,
 
       // Thread Local Storage.
       TLSADDR,
@@ -349,6 +346,9 @@ namespace llvm {
       ADD, SUB, ADC, SBB, SMUL,
       INC, DEC, OR, XOR, AND,
 
+      // Bit field extract.
+      BEXTR,
+
       // LOW, HI, FLAGS = umul LHS, RHS.
       UMUL,
 
@@ -391,17 +391,13 @@ namespace llvm {
       PSHUFHW,
       PSHUFLW,
       SHUFP,
-      // VBMI2 Concat & Shift.
-      VSHLD,
-      VSHRD,
-      VSHLDV,
-      VSHRDV,
       //Shuffle Packed Values at 128-bit granularity.
       SHUF128,
       MOVDDUP,
       MOVSHDUP,
       MOVSLDUP,
       MOVLHPS,
+      MOVLHPD,
       MOVHLPS,
       MOVLPS,
       MOVLPD,
@@ -432,13 +428,11 @@ namespace llvm {
       VFIXUPIMM,
       VFIXUPIMMS,
       // Range Restriction Calculation For Packed Pairs of Float32/64 values.
-      VRANGE, VRANGE_RND, VRANGES, VRANGES_RND,
+      VRANGE,
       // Reduce - Perform Reduction Transformation on scalar\packed FP.
-      VREDUCE, VREDUCE_RND, VREDUCES, VREDUCES_RND,
+      VREDUCE, VREDUCES,
       // RndScale - Round FP Values To Include A Given Number Of Fraction Bits.
-      // Also used by the legacy (V)ROUND intrinsics where we mask out the
-      // scaling part of the immediate.
-      VRNDSCALE, VRNDSCALE_RND, VRNDSCALES, VRNDSCALES_RND,
+      VRNDSCALE, VRNDSCALES,
       // Tests Types Of a FP Values for packed types.
       VFPCLASS,
       // Tests Types Of a FP Values for scalar types.
@@ -457,6 +451,8 @@ namespace llvm {
       /// SSE4A Extraction and Insertion.
       EXTRQI, INSERTQI,
 
+      // XOP variable/immediate rotations.
+      VPROT, VPROTI,
       // XOP arithmetic/logical shifts.
       VPSHA, VPSHL,
       // XOP signed/unsigned integer comparisons.
@@ -475,20 +471,10 @@ namespace llvm {
 
       // Multiply and Add Packed Integers.
       VPMADDUBSW, VPMADDWD,
-
-      // AVX512IFMA multiply and add.
-      // NOTE: These are different than the instruction and perform
-      // op0 x op1 + op2.
       VPMADD52L, VPMADD52H,
 
-      // VNNI
-      VPDPBUSD,
-      VPDPBUSDS,
-      VPDPWSSD,
-      VPDPWSSDS,
-
       // FMA nodes.
-      // We use the target independent ISD::FMA for the non-inverted case.
+      FMADD,
       FNMADD,
       FMSUB,
       FNMSUB,
@@ -502,12 +488,6 @@ namespace llvm {
       FNMSUB_RND,
       FMADDSUB_RND,
       FMSUBADD_RND,
-
-      // Scalar intrinsic FMA.
-      FMADDS1, FMADDS3,
-      FNMADDS1, FNMADDS3,
-      FMSUBS1, FMSUBS3,
-      FNMSUBS1, FNMSUBS3,
 
       // Scalar intrinsic FMA with rounding mode.
       // Two versions, passthru bits on op1 or op3.
@@ -577,7 +557,7 @@ namespace llvm {
       RSQRT28, RSQRT28S, RCP28, RCP28S, EXP2,
 
       // Conversions between float and half-float.
-      CVTPS2PH, CVTPH2PS, CVTPH2PS_RND,
+      CVTPS2PH, CVTPH2PS,
 
       // LWP insert record.
       LWPINS,
@@ -591,7 +571,7 @@ namespace llvm {
 
       /// LOCK-prefixed arithmetic read-modify-write instructions.
       /// EFLAGS, OUTCHAIN = LADD(INCHAIN, PTR, RHS)
-      LADD, LSUB, LOR, LXOR, LAND, LINC, LDEC,
+      LADD, LSUB, LOR, LXOR, LAND,
 
       // Load, scalar_to_vector, and zero extend.
       VZEXT_LOAD,
@@ -648,6 +628,46 @@ namespace llvm {
 
   /// Define some predicates that are used for node matching.
   namespace X86 {
+    /// Return true if the specified
+    /// EXTRACT_SUBVECTOR operand specifies a vector extract that is
+    /// suitable for input to VEXTRACTF128, VEXTRACTI128 instructions.
+    bool isVEXTRACT128Index(SDNode *N);
+
+    /// Return true if the specified
+    /// INSERT_SUBVECTOR operand specifies a subvector insert that is
+    /// suitable for input to VINSERTF128, VINSERTI128 instructions.
+    bool isVINSERT128Index(SDNode *N);
+
+    /// Return true if the specified
+    /// EXTRACT_SUBVECTOR operand specifies a vector extract that is
+    /// suitable for input to VEXTRACTF64X4, VEXTRACTI64X4 instructions.
+    bool isVEXTRACT256Index(SDNode *N);
+
+    /// Return true if the specified
+    /// INSERT_SUBVECTOR operand specifies a subvector insert that is
+    /// suitable for input to VINSERTF64X4, VINSERTI64X4 instructions.
+    bool isVINSERT256Index(SDNode *N);
+
+    /// Return the appropriate
+    /// immediate to extract the specified EXTRACT_SUBVECTOR index
+    /// with VEXTRACTF128, VEXTRACTI128 instructions.
+    unsigned getExtractVEXTRACT128Immediate(SDNode *N);
+
+    /// Return the appropriate
+    /// immediate to insert at the specified INSERT_SUBVECTOR index
+    /// with VINSERTF128, VINSERT128 instructions.
+    unsigned getInsertVINSERT128Immediate(SDNode *N);
+
+    /// Return the appropriate
+    /// immediate to extract the specified EXTRACT_SUBVECTOR index
+    /// with VEXTRACTF64X4, VEXTRACTI64x4 instructions.
+    unsigned getExtractVEXTRACT256Immediate(SDNode *N);
+
+    /// Return the appropriate
+    /// immediate to insert at the specified INSERT_SUBVECTOR index
+    /// with VINSERTF64x4, VINSERTI64x4 instructions.
+    unsigned getInsertVINSERT256Immediate(SDNode *N);
+
     /// Returns true if Elt is a constant zero or floating point constant +0.0.
     bool isZeroNode(SDValue Elt);
 
@@ -676,14 +696,8 @@ namespace llvm {
     void markLibCallAttributes(MachineFunction *MF, unsigned CC,
                                ArgListTy &Args) const override;
 
-    // For i512, DAGTypeLegalizer::SplitInteger needs a shift amount 256,
-    // which cannot be held by i8, therefore use i16 instead. In all the
-    // other situations i8 is sufficient.
-    MVT getScalarShiftAmountTy(const DataLayout &, EVT VT) const override {
-      MVT T = VT.getSizeInBits() >= 512 ? MVT::i16 : MVT::i8;
-      assert((VT.getSizeInBits() + 1) / 2 < (1U << T.getSizeInBits()) &&
-             "Scalar shift amount type too small");
-      return T;
+    MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
+      return MVT::i8;
     }
 
     const MCExpr *
@@ -753,18 +767,18 @@ namespace llvm {
 
     SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
-    // Return true if it is profitable to combine a BUILD_VECTOR with a
-    // stride-pattern to a shuffle and a truncate.
+    // Return true if it is profitable to combine a BUILD_VECTOR to a TRUNCATE
+    // for given operand and result types.
     // Example of such a combine:
-    // v4i32 build_vector((extract_elt V, 1),
-    //                    (extract_elt V, 3),
-    //                    (extract_elt V, 5),
-    //                    (extract_elt V, 7))
+    // v4i32 build_vector((extract_elt V, 0),
+    //                    (extract_elt V, 2),
+    //                    (extract_elt V, 4),
+    //                    (extract_elt V, 6))
     //  -->
-    // v4i32 truncate (bitcast (shuffle<1,u,3,u,4,u,5,u,6,u,7,u> V, u) to
-    // v4i64)
-    bool isDesirableToCombineBuildVectorToShuffleTruncate(
-        ArrayRef<int> ShuffleMask, EVT SrcVT, EVT TruncVT) const override;
+    // v4i32 truncate (bitcast V to v4i64)
+    bool isDesirableToCombineBuildVectorToTruncate() const override {
+      return true;
+    }
 
     /// Return true if the target has native support for
     /// the specified value type and it is 'desirable' to use the type for the
@@ -784,11 +798,6 @@ namespace llvm {
 
     /// This method returns the name of a target specific DAG node.
     const char *getTargetNodeName(unsigned Opcode) const override;
-
-    bool mergeStoresAfterLegalization() const override { return true; }
-
-    bool canMergeStoresTo(unsigned AddressSpace, EVT MemVT,
-                          const SelectionDAG &DAG) const override;
 
     bool isCheapToSpeculateCttz() const override;
 
@@ -845,8 +854,6 @@ namespace llvm {
                                              const SelectionDAG &DAG,
                                              unsigned Depth) const override;
 
-    SDValue unwrapAddress(SDValue N) const override;
-
     bool isGAPlusOffset(SDNode *N, const GlobalValue* &GA,
                         int64_t &Offset) const override;
 
@@ -896,8 +903,7 @@ namespace llvm {
     /// Return true if the addressing mode represented
     /// by AM is legal for this target, for a load/store of the specified type.
     bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM,
-                               Type *Ty, unsigned AS,
-                               Instruction *I = nullptr) const override;
+                               Type *Ty, unsigned AS) const override;
 
     /// Return true if the specified immediate is legal
     /// icmp immediate, that is the target has icmp instructions which can
@@ -971,7 +977,8 @@ namespace llvm {
     /// VECTOR_SHUFFLE operations, those with specific masks. By default, if a
     /// target supports the VECTOR_SHUFFLE node, all mask values are assumed to
     /// be legal.
-    bool isShuffleMaskLegal(ArrayRef<int> Mask, EVT VT) const override;
+    bool isShuffleMaskLegal(const SmallVectorImpl<int> &Mask,
+                            EVT VT) const override;
 
     /// Similar to isShuffleMaskLegal. This is used by Targets can use this to
     /// indicate if there is a suitable VECTOR_SHUFFLE that can be used to
@@ -1006,19 +1013,13 @@ namespace llvm {
     bool shouldConvertConstantLoadToIntImm(const APInt &Imm,
                                            Type *Ty) const override;
 
-    bool convertSelectOfConstantsToMath(EVT VT) const override;
+    bool convertSelectOfConstantsToMath() const override {
+      return true;
+    }
 
     /// Return true if EXTRACT_SUBVECTOR is cheap for this result type
     /// with this index.
-    bool isExtractSubvectorCheap(EVT ResVT, EVT SrcVT,
-                                 unsigned Index) const override;
-
-    bool storeOfVectorConstantIsCheap(EVT MemVT, unsigned NumElem,
-                                      unsigned AddrSpace) const override {
-      // If we can replace more than 2 scalar stores, there will be a reduction
-      // in instructions even after we add a vector constant load.
-      return NumElem > 2;
-    }
+    bool isExtractSubvectorCheap(EVT ResVT, unsigned Index) const override;
 
     /// Intel processors have a unified instruction and data cache
     const char * getClearCacheBuiltinName() const override {
@@ -1183,6 +1184,8 @@ namespace llvm {
     SDValue lowerUINT_TO_FP_vec(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerTRUNCATE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFP_TO_INT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerToBT(SDValue And, ISD::CondCode CC, const SDLoc &dl,
+                      SelectionDAG &DAG) const;
     SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSETCCCARRY(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
@@ -1204,7 +1207,6 @@ namespace llvm {
     SDValue LowerWin64_i128OP(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGC_TRANSITION_START(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGC_TRANSITION_END(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
 
     SDValue
     LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
@@ -1265,10 +1267,6 @@ namespace llvm {
     MachineBasicBlock *
     EmitVAStartSaveXMMRegsWithCustomInserter(MachineInstr &BInstr,
                                              MachineBasicBlock *BB) const;
-
-    MachineBasicBlock *EmitLoweredCascadedSelect(MachineInstr &MI1,
-                                                 MachineInstr &MI2,
-                                                 MachineBasicBlock *BB) const;
 
     MachineBasicBlock *EmitLoweredSelect(MachineInstr &I,
                                          MachineBasicBlock *BB) const;
@@ -1424,68 +1422,18 @@ namespace llvm {
   };
 
   // X86 specific Gather node.
-  // The class has the same order of operands as MaskedGatherSDNode for
-  // convenience.
-  class X86MaskedGatherSDNode : public MemSDNode {
+  class X86MaskedGatherSDNode : public MaskedGatherScatterSDNode {
   public:
     X86MaskedGatherSDNode(unsigned Order,
                           const DebugLoc &dl, SDVTList VTs, EVT MemVT,
                           MachineMemOperand *MMO)
-      : MemSDNode(X86ISD::MGATHER, Order, dl, VTs, MemVT, MMO)
+      : MaskedGatherScatterSDNode(X86ISD::MGATHER, Order, dl, VTs, MemVT, MMO)
     {}
-
-    const SDValue &getBasePtr() const { return getOperand(3); }
-    const SDValue &getIndex()   const { return getOperand(4); }
-    const SDValue &getMask()    const { return getOperand(2); }
-    const SDValue &getValue()   const { return getOperand(1); }
-
     static bool classof(const SDNode *N) {
       return N->getOpcode() == X86ISD::MGATHER;
     }
   };
 
-  /// Generate unpacklo/unpackhi shuffle mask.
-  template <typename T = int>
-  void createUnpackShuffleMask(MVT VT, SmallVectorImpl<T> &Mask, bool Lo,
-                               bool Unary) {
-    assert(Mask.empty() && "Expected an empty shuffle mask vector");
-    int NumElts = VT.getVectorNumElements();
-    int NumEltsInLane = 128 / VT.getScalarSizeInBits();
-    for (int i = 0; i < NumElts; ++i) {
-      unsigned LaneStart = (i / NumEltsInLane) * NumEltsInLane;
-      int Pos = (i % NumEltsInLane) / 2 + LaneStart;
-      Pos += (Unary ? 0 : NumElts * (i % 2));
-      Pos += (Lo ? 0 : NumEltsInLane / 2);
-      Mask.push_back(Pos);
-    }
-  }
-
-  /// Helper function to scale a shuffle or target shuffle mask, replacing each
-  /// mask index with the scaled sequential indices for an equivalent narrowed
-  /// mask. This is the reverse process to canWidenShuffleElements, but can
-  /// always succeed.
-  template <typename T>
-  void scaleShuffleMask(int Scale, ArrayRef<T> Mask,
-                        SmallVectorImpl<T> &ScaledMask) {
-    assert(0 < Scale && "Unexpected scaling factor");
-    int NumElts = Mask.size();
-    ScaledMask.assign(static_cast<size_t>(NumElts * Scale), -1);
-
-    for (int i = 0; i != NumElts; ++i) {
-      int M = Mask[i];
-
-      // Repeat sentinel values in every mask element.
-      if (M < 0) {
-        for (int s = 0; s != Scale; ++s)
-          ScaledMask[(Scale * i) + s] = M;
-        continue;
-      }
-
-      // Scale mask element and increment across each mask element.
-      for (int s = 0; s != Scale; ++s)
-        ScaledMask[(Scale * i) + s] = (Scale * M) + s;
-    }
-  }
 } // end namespace llvm
 
 #endif // LLVM_LIB_TARGET_X86_X86ISELLOWERING_H

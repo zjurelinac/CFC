@@ -202,35 +202,6 @@ typedef std::pair<uint64_t, DiceRef> DiceTableEntry;
 typedef std::vector<DiceTableEntry> DiceTable;
 typedef DiceTable::iterator dice_table_iterator;
 
-#ifdef HAVE_LIBXAR
-namespace {
-struct ScopedXarFile {
-  xar_t xar;
-  ScopedXarFile(const char *filename, int32_t flags)
-      : xar(xar_open(filename, flags)) {}
-  ~ScopedXarFile() {
-    if (xar)
-      xar_close(xar);
-  }
-  ScopedXarFile(const ScopedXarFile &) = delete;
-  ScopedXarFile &operator=(const ScopedXarFile &) = delete;
-  operator xar_t() { return xar; }
-};
-
-struct ScopedXarIter {
-  xar_iter_t iter;
-  ScopedXarIter() : iter(xar_iter_new()) {}
-  ~ScopedXarIter() {
-    if (iter)
-      xar_iter_free(iter);
-  }
-  ScopedXarIter(const ScopedXarIter &) = delete;
-  ScopedXarIter &operator=(const ScopedXarIter &) = delete;
-  operator xar_iter_t() { return iter; }
-};
-} // namespace
-#endif // defined(HAVE_LIBXAR)
-
 // This is used to search for a data in code table entry for the PC being
 // disassembled.  The j parameter has the PC in j.first.  A single data in code
 // table entry can cover many bytes for each of its Kind's.  So if the offset,
@@ -1255,7 +1226,7 @@ static void ProcessMachO(StringRef Name, MachOObjectFile *MachOOF,
 
   if (Disassemble) {
     if (MachOOF->getHeader().filetype == MachO::MH_KEXT_BUNDLE &&
-        MachOOF->getHeader().cputype == MachO::CPU_TYPE_ARM64)
+	MachOOF->getHeader().cputype == MachO::CPU_TYPE_ARM64)
       DisassembleMachO(FileName, MachOOF, "__TEXT_EXEC", "__text");
     else
       DisassembleMachO(FileName, MachOOF, "__TEXT", "__text");
@@ -1304,10 +1275,11 @@ static void ProcessMachO(StringRef Name, MachOObjectFile *MachOOF,
     printWeakBindTable(MachOOF);
 
   if (DwarfDumpType != DIDT_Null) {
-    std::unique_ptr<DIContext> DICtx = DWARFContext::create(*MachOOF);
+    std::unique_ptr<DIContext> DICtx(new DWARFContextInMemory(*MachOOF));
     // Dump the complete DWARF structure.
     DIDumpOptions DumpOpts;
     DumpOpts.DumpType = DwarfDumpType;
+    DumpOpts.DumpEH = true;
     DICtx->dump(outs(), DumpOpts);
   }
 }
@@ -5831,12 +5803,14 @@ static void PrintModeVerbose(uint32_t mode) {
 }
 
 static void PrintXarFilesSummary(const char *XarFilename, xar_t xar) {
+  xar_iter_t xi;
   xar_file_t xf;
+  xar_iter_t xp;
   const char *key, *type, *mode, *user, *group, *size, *mtime, *name, *m;
   char *endp;
   uint32_t mode_value;
 
-  ScopedXarIter xi;
+  xi = xar_iter_new();
   if (!xi) {
     errs() << "Can't obtain an xar iterator for xar archive "
            << XarFilename << "\n";
@@ -5845,7 +5819,7 @@ static void PrintXarFilesSummary(const char *XarFilename, xar_t xar) {
 
   // Go through the xar's files.
   for (xf = xar_file_first(xar, xi); xf; xf = xar_file_next(xi)) {
-    ScopedXarIter xp;
+    xp = xar_iter_new();
     if(!xp){
       errs() << "Can't obtain an xar iterator for xar archive "
              << XarFilename << "\n";
@@ -5859,7 +5833,7 @@ static void PrintXarFilesSummary(const char *XarFilename, xar_t xar) {
     mtime = nullptr;
     name = nullptr;
     for(key = xar_prop_first(xf, xp); key; key = xar_prop_next(xp)){
-      const char *val = nullptr;
+      const char *val = nullptr; 
       xar_prop_get(xf, key, &val);
 #if 0 // Useful for debugging.
       outs() << "key: " << key << " value: " << val << "\n";
@@ -5975,7 +5949,7 @@ static void DumpBitcodeSection(MachOObjectFile *O, const char *sect,
     errs() << XarEC.message() << "\n";
     return;
   }
-  ToolOutputFile XarFile(XarFilename, FD);
+  tool_output_file XarFile(XarFilename, FD);
   raw_fd_ostream &XarOut = XarFile.os();
   StringRef XarContents(sect, size);
   XarOut << XarContents;
@@ -5983,7 +5957,7 @@ static void DumpBitcodeSection(MachOObjectFile *O, const char *sect,
   if (XarOut.has_error())
     return;
 
-  ScopedXarFile xar(XarFilename.c_str(), READ);
+  xar_t xar = xar_open(XarFilename.c_str(), READ);
   if (!xar) {
     errs() << "Can't create temporary xar archive " << XarFilename << "\n";
     return;
@@ -6023,38 +5997,41 @@ static void DumpBitcodeSection(MachOObjectFile *O, const char *sect,
   outs() << Buffer->getBuffer() << "\n";
 
   // TODO: Go through the xar's files.
-  ScopedXarIter xi;
+  xar_iter_t xi = xar_iter_new();
   if(!xi){
     errs() << "Can't obtain an xar iterator for xar archive "
            << XarFilename.c_str() << "\n";
+    xar_close(xar);
     return;
   }
   for(xar_file_t xf = xar_file_first(xar, xi); xf; xf = xar_file_next(xi)){
     const char *key;
+    xar_iter_t xp;
     const char *member_name, *member_type, *member_size_string;
     size_t member_size;
 
-    ScopedXarIter xp;
+    xp = xar_iter_new();
     if(!xp){
       errs() << "Can't obtain an xar iterator for xar archive "
-             << XarFilename.c_str() << "\n";
+	     << XarFilename.c_str() << "\n";
+      xar_close(xar);
       return;
     }
     member_name = NULL;
     member_type = NULL;
     member_size_string = NULL;
     for(key = xar_prop_first(xf, xp); key; key = xar_prop_next(xp)){
-      const char *val = nullptr;
+      const char *val = nullptr; 
       xar_prop_get(xf, key, &val);
 #if 0 // Useful for debugging.
       outs() << "key: " << key << " value: " << val << "\n";
 #endif
-      if (strcmp(key, "name") == 0)
-        member_name = val;
-      if (strcmp(key, "type") == 0)
-        member_type = val;
-      if (strcmp(key, "data/size") == 0)
-        member_size_string = val;
+      if(strcmp(key, "name") == 0)
+	member_name = val;
+      if(strcmp(key, "type") == 0)
+	member_type = val;
+      if(strcmp(key, "data/size") == 0)
+	member_size_string = val;
     }
     /*
      * If we find a file with a name, date/size and type properties
@@ -6067,42 +6044,44 @@ static void DumpBitcodeSection(MachOObjectFile *O, const char *sect,
       char *endptr;
       member_size = strtoul(member_size_string, &endptr, 10);
       if (*endptr == '\0' && member_size != 0) {
-        char *buffer;
-        if (xar_extract_tobuffersz(xar, xf, &buffer, &member_size) == 0) {
+	char *buffer = (char *) ::operator new (member_size);
+	if (xar_extract_tobuffersz(xar, xf, &buffer, &member_size) == 0) {
 #if 0 // Useful for debugging.
-          outs() << "xar member: " << member_name << " extracted\n";
+	  outs() << "xar member: " << member_name << " extracted\n";
 #endif
           // Set the XarMemberName we want to see printed in the header.
-          std::string OldXarMemberName;
-          // If XarMemberName is already set this is nested. So
-          // save the old name and create the nested name.
-          if (!XarMemberName.empty()) {
-            OldXarMemberName = XarMemberName;
+	  std::string OldXarMemberName;
+	  // If XarMemberName is already set this is nested. So
+	  // save the old name and create the nested name.
+	  if (!XarMemberName.empty()) {
+	    OldXarMemberName = XarMemberName;
             XarMemberName =
-                (Twine("[") + XarMemberName + "]" + member_name).str();
-          } else {
-            OldXarMemberName = "";
-            XarMemberName = member_name;
-          }
-          // See if this is could be a xar file (nested).
-          if (member_size >= sizeof(struct xar_header)) {
+             (Twine("[") + XarMemberName + "]" + member_name).str();
+	  } else {
+	    OldXarMemberName = "";
+	    XarMemberName = member_name;
+	  }
+	  // See if this is could be a xar file (nested).
+	  if (member_size >= sizeof(struct xar_header)) {
 #if 0 // Useful for debugging.
-            outs() << "could be a xar file: " << member_name << "\n";
+	    outs() << "could be a xar file: " << member_name << "\n";
 #endif
-            memcpy((char *)&XarHeader, buffer, sizeof(struct xar_header));
+	    memcpy((char *)&XarHeader, buffer, sizeof(struct xar_header));
             if (sys::IsLittleEndianHost)
-              swapStruct(XarHeader);
-            if (XarHeader.magic == XAR_HEADER_MAGIC)
-              DumpBitcodeSection(O, buffer, member_size, verbose,
+	      swapStruct(XarHeader);
+	    if(XarHeader.magic == XAR_HEADER_MAGIC)
+	      DumpBitcodeSection(O, buffer, member_size, verbose,
                                  PrintXarHeader, PrintXarFileHeaders,
-                                 XarMemberName);
-          }
-          XarMemberName = OldXarMemberName;
-          delete buffer;
-        }
+		                 XarMemberName);
+	  }
+	  XarMemberName = OldXarMemberName;
+	}
+        delete buffer;
       }
     }
+    xar_iter_free(xp);
   }
+  xar_close(xar);
 }
 #endif // defined(HAVE_LIBXAR)
 
@@ -6458,11 +6437,8 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
     // GetTarget prints out stuff.
     return;
   }
-  std::string MachOMCPU;
   if (MCPU.empty() && McpuDefault)
-    MachOMCPU = McpuDefault;
-  else
-    MachOMCPU = MCPU;
+    MCPU = McpuDefault;
 
   std::unique_ptr<const MCInstrInfo> InstrInfo(TheTarget->createMCInstrInfo());
   std::unique_ptr<const MCInstrInfo> ThumbInstrInfo;
@@ -6484,7 +6460,7 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
   std::unique_ptr<const MCAsmInfo> AsmInfo(
       TheTarget->createMCAsmInfo(*MRI, TripleName));
   std::unique_ptr<const MCSubtargetInfo> STI(
-      TheTarget->createMCSubtargetInfo(TripleName, MachOMCPU, FeaturesStr));
+      TheTarget->createMCSubtargetInfo(TripleName, MCPU, FeaturesStr));
   MCContext Ctx(AsmInfo.get(), MRI.get(), nullptr);
   std::unique_ptr<MCDisassembler> DisAsm(
       TheTarget->createMCDisassembler(*STI, Ctx));
@@ -6534,8 +6510,7 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
     ThumbAsmInfo.reset(
         ThumbTarget->createMCAsmInfo(*ThumbMRI, ThumbTripleName));
     ThumbSTI.reset(
-        ThumbTarget->createMCSubtargetInfo(ThumbTripleName, MachOMCPU,
-                                           FeaturesStr));
+        ThumbTarget->createMCSubtargetInfo(ThumbTripleName, MCPU, FeaturesStr));
     ThumbCtx.reset(new MCContext(ThumbAsmInfo.get(), ThumbMRI.get(), nullptr));
     ThumbDisAsm.reset(ThumbTarget->createMCDisassembler(*ThumbSTI, *ThumbCtx));
     MCContext *PtrThumbCtx = ThumbCtx.get();
@@ -6619,7 +6594,7 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
     }
 
     // Setup the DIContext
-    diContext = DWARFContext::create(*DbgObj);
+    diContext.reset(new DWARFContextInMemory(*DbgObj));
   }
 
   if (FilterSections.size() == 0)
@@ -6728,7 +6703,7 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
         if (!DisSymName.empty() && DisSymName == SymName) {
           outs() << "-dis-symname: " << DisSymName << " not in the section\n";
           return;
-        }
+	}
         continue;
       }
       // The __mh_execute_header is special and we need to deal with that fact
@@ -9427,8 +9402,7 @@ void llvm::printMachOExportsTrie(const object::MachOObjectFile *Obj) {
       }
     }
   }
-  Error Err = Error::success();
-  for (const llvm::object::ExportEntry &Entry : Obj->exports(Err)) {
+  for (const llvm::object::ExportEntry &Entry : Obj->exports()) {
     uint64_t Flags = Entry.flags();
     bool ReExport = (Flags & MachO::EXPORT_SYMBOL_FLAGS_REEXPORT);
     bool WeakDef = (Flags & MachO::EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION);
@@ -9481,8 +9455,6 @@ void llvm::printMachOExportsTrie(const object::MachOObjectFile *Obj) {
     }
     outs() << "\n";
   }
-  if (Err)
-    report_error(Obj->getFileName(), std::move(Err));
 }
 
 //===----------------------------------------------------------------------===//

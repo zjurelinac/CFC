@@ -1,4 +1,4 @@
-//===- CriticalAntiDepBreaker.cpp - Anti-dep breaker ----------------------===//
+//===----- CriticalAntiDepBreaker.cpp - Anti-dep breaker -------- ---------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,29 +14,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "CriticalAntiDepBreaker.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/RegisterClassInfo.h"
-#include "llvm/CodeGen/ScheduleDAG.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
-#include "llvm/MC/MCInstrDesc.h"
-#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include <cassert>
-#include <map>
-#include <utility>
-#include <vector>
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -50,7 +35,8 @@ CriticalAntiDepBreaker::CriticalAntiDepBreaker(MachineFunction &MFi,
       Classes(TRI->getNumRegs(), nullptr), KillIndices(TRI->getNumRegs(), 0),
       DefIndices(TRI->getNumRegs(), 0), KeepRegs(TRI->getNumRegs(), false) {}
 
-CriticalAntiDepBreaker::~CriticalAntiDepBreaker() = default;
+CriticalAntiDepBreaker::~CriticalAntiDepBreaker() {
+}
 
 void CriticalAntiDepBreaker::StartBlock(MachineBasicBlock *BB) {
   const unsigned BBSize = BB->size();
@@ -347,7 +333,8 @@ void CriticalAntiDepBreaker::ScanInstruction(MachineInstr &MI, unsigned Count) {
 bool
 CriticalAntiDepBreaker::isNewRegClobberedByRefs(RegRefIter RegRefBegin,
                                                 RegRefIter RegRefEnd,
-                                                unsigned NewReg) {
+                                                unsigned NewReg)
+{
   for (RegRefIter I = RegRefBegin; I != RegRefEnd; ++I ) {
     MachineOperand *RefOper = I->second;
 
@@ -394,7 +381,8 @@ findSuitableFreeRegister(RegRefIter RegRefBegin,
                          unsigned AntiDepReg,
                          unsigned LastNewReg,
                          const TargetRegisterClass *RC,
-                         SmallVectorImpl<unsigned> &Forbid) {
+                         SmallVectorImpl<unsigned> &Forbid)
+{
   ArrayRef<MCPhysReg> Order = RegClassInfo.getOrder(RC);
   for (unsigned i = 0; i != Order.size(); ++i) {
     unsigned NewReg = Order[i];
@@ -435,7 +423,7 @@ findSuitableFreeRegister(RegRefIter RegRefBegin,
 }
 
 unsigned CriticalAntiDepBreaker::
-BreakAntiDependencies(const std::vector<SUnit> &SUnits,
+BreakAntiDependencies(const std::vector<SUnit>& SUnits,
                       MachineBasicBlock::iterator Begin,
                       MachineBasicBlock::iterator End,
                       unsigned InsertPosIndex,
@@ -448,7 +436,7 @@ BreakAntiDependencies(const std::vector<SUnit> &SUnits,
   // This is used for updating debug information.
   //
   // FIXME: Replace this with the existing map in ScheduleDAGInstrs::MISUnitMap
-  DenseMap<MachineInstr *, const SUnit *> MISUnitMap;
+  DenseMap<MachineInstr*,const SUnit*> MISUnitMap;
 
   // Find the node at the bottom of the critical path.
   const SUnit *Max = nullptr;

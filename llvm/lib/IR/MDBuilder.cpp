@@ -14,7 +14,6 @@
 
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/Function.h"
 #include "llvm/IR/Metadata.h"
 using namespace llvm;
 
@@ -63,14 +62,9 @@ MDNode *MDBuilder::createFunctionEntryCount(
   SmallVector<Metadata *, 8> Ops;
   Ops.push_back(createString("function_entry_count"));
   Ops.push_back(createConstant(ConstantInt::get(Int64Ty, Count)));
-  if (Imports) {
-    SmallVector<GlobalValue::GUID, 2> OrderID(Imports->begin(), Imports->end());
-    std::stable_sort(OrderID.begin(), OrderID.end(),
-      [] (GlobalValue::GUID A, GlobalValue::GUID B) {
-        return A < B;});
-    for (auto ID : OrderID)
+  if (Imports)
+    for (auto ID : *Imports)
       Ops.push_back(createConstant(ConstantInt::get(Int64Ty, ID)));
-  }
   return MDNode::get(Context, Ops);
 }
 
@@ -94,13 +88,6 @@ MDNode *MDBuilder::createRange(Constant *Lo, Constant *Hi) {
 
   // Return the range [Lo, Hi).
   return MDNode::get(Context, {createConstant(Lo), createConstant(Hi)});
-}
-
-MDNode *MDBuilder::createCallees(ArrayRef<Function *> Callees) {
-  SmallVector<Metadata *, 4> Ops;
-  for (Function *F : Callees)
-    Ops.push_back(createConstant(F));
-  return MDNode::get(Context, Ops);
 }
 
 MDNode *MDBuilder::createAnonymousAARoot(StringRef Name, MDNode *Extra) {
@@ -196,11 +183,4 @@ MDNode *MDBuilder::createTBAAStructTagNode(MDNode *BaseType, MDNode *AccessType,
                                  createConstant(ConstantInt::get(Int64, 1))});
   }
   return MDNode::get(Context, {BaseType, AccessType, createConstant(Off)});
-}
-
-MDNode *MDBuilder::createIrrLoopHeaderWeight(uint64_t Weight) {
-  SmallVector<Metadata *, 2> Vals(2);
-  Vals[0] = createString("loop_header_weight");
-  Vals[1] = createConstant(ConstantInt::get(Type::getInt64Ty(Context), Weight));
-  return MDNode::get(Context, Vals);
 }

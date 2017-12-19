@@ -36,7 +36,6 @@ static bool is32bit(MachineTypes Machine) {
   switch (Machine) {
   default:
     llvm_unreachable("unsupported machine");
-  case IMAGE_FILE_MACHINE_ARM64:
   case IMAGE_FILE_MACHINE_AMD64:
     return false;
   case IMAGE_FILE_MACHINE_ARMNT:
@@ -53,8 +52,6 @@ static uint16_t getImgRelRelocation(MachineTypes Machine) {
     return IMAGE_REL_AMD64_ADDR32NB;
   case IMAGE_FILE_MACHINE_ARMNT:
     return IMAGE_REL_ARM_ADDR32NB;
-  case IMAGE_FILE_MACHINE_ARM64:
-    return IMAGE_REL_ARM64_ADDR32NB;
   case IMAGE_FILE_MACHINE_I386:
     return IMAGE_REL_I386_DIR32NB;
   }
@@ -558,9 +555,9 @@ NewArchiveMember ObjectFactory::createWeakExternal(StringRef Sym,
   return {MemoryBufferRef(StringRef(Buf, Buffer.size()), ImportName)};
 }
 
-Error writeImportLibrary(StringRef ImportName, StringRef Path,
-                         ArrayRef<COFFShortExport> Exports,
-                         MachineTypes Machine, bool MakeWeakAliases) {
+std::error_code writeImportLibrary(StringRef ImportName, StringRef Path,
+                                   ArrayRef<COFFShortExport> Exports,
+                                   MachineTypes Machine, bool MakeWeakAliases) {
 
   std::vector<NewArchiveMember> Members;
   ObjectFactory OF(llvm::sys::path::filename(ImportName), Machine);
@@ -596,16 +593,19 @@ Error writeImportLibrary(StringRef ImportName, StringRef Path,
                                      ? SymbolName
                                      : replace(SymbolName, E.Name, E.ExtName);
 
-    if (!Name)
-      return Name.takeError();
+    if (!Name) {
+      return errorToErrorCode(Name.takeError());
+    }
 
     Members.push_back(
         OF.createShortImport(*Name, E.Ordinal, ImportType, NameType));
   }
 
-  return writeArchive(Path, Members, /*WriteSymtab*/ true,
-                      object::Archive::K_GNU,
-                      /*Deterministic*/ true, /*Thin*/ false);
+  std::pair<StringRef, std::error_code> Result =
+      writeArchive(Path, Members, /*WriteSymtab*/ true, object::Archive::K_GNU,
+                   /*Deterministic*/ true, /*Thin*/ false);
+
+  return Result.second;
 }
 
 } // namespace object

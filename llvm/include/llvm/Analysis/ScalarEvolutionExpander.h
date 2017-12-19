@@ -27,15 +27,8 @@ namespace llvm {
   class TargetTransformInfo;
 
   /// Return true if the given expression is safe to expand in the sense that
-  /// all materialized values are safe to speculate anywhere their operands are
-  /// defined.
+  /// all materialized values are safe to speculate.
   bool isSafeToExpand(const SCEV *S, ScalarEvolution &SE);
-
-  /// Return true if the given expression is safe to expand in the sense that
-  /// all materialized values are defined and safe to speculate at the specified
-  /// location and their operands are defined at this location.
-  bool isSafeToExpandAt(const SCEV *S, const Instruction *InsertionPoint,
-                        ScalarEvolution &SE);
 
   /// This class uses information about analyze scalars to rewrite expressions
   /// in canonical form.

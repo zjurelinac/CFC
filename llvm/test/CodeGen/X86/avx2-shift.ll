@@ -455,13 +455,13 @@ define <32 x i8> @shr9(<32 x i8> %A) nounwind {
 define <32 x i8> @sra_v32i8_7(<32 x i8> %A) nounwind {
 ; X32-LABEL: sra_v32i8_7:
 ; X32:       # BB#0:
-; X32-NEXT:    vpxor %xmm1, %xmm1, %xmm1
+; X32-NEXT:    vpxor %ymm1, %ymm1, %ymm1
 ; X32-NEXT:    vpcmpgtb %ymm0, %ymm1, %ymm0
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: sra_v32i8_7:
 ; X64:       # BB#0:
-; X64-NEXT:    vpxor %xmm1, %xmm1, %xmm1
+; X64-NEXT:    vpxor %ymm1, %ymm1, %ymm1
 ; X64-NEXT:    vpcmpgtb %ymm0, %ymm1, %ymm0
 ; X64-NEXT:    retq
   %B = ashr <32 x i8> %A, <i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7, i8 7>
@@ -556,8 +556,9 @@ define <8 x i16> @variable_ashr16(<8 x i16> %lhs, <8  x i16> %rhs) {
 ; X32-NEXT:    vpmovzxwd {{.*#+}} ymm1 = xmm1[0],zero,xmm1[1],zero,xmm1[2],zero,xmm1[3],zero,xmm1[4],zero,xmm1[5],zero,xmm1[6],zero,xmm1[7],zero
 ; X32-NEXT:    vpmovsxwd %xmm0, %ymm0
 ; X32-NEXT:    vpsravd %ymm1, %ymm0, %ymm0
-; X32-NEXT:    vextracti128 $1, %ymm0, %xmm1
-; X32-NEXT:    vpackssdw %xmm1, %xmm0, %xmm0
+; X32-NEXT:    vpshufb {{.*#+}} ymm0 = ymm0[0,1,4,5,8,9,12,13,8,9,12,13,12,13,14,15,16,17,20,21,24,25,28,29,24,25,28,29,28,29,30,31]
+; X32-NEXT:    vpermq {{.*#+}} ymm0 = ymm0[0,2,2,3]
+; X32-NEXT:    # kill: %XMM0<def> %XMM0<kill> %YMM0<kill>
 ; X32-NEXT:    vzeroupper
 ; X32-NEXT:    retl
 ;
@@ -566,8 +567,9 @@ define <8 x i16> @variable_ashr16(<8 x i16> %lhs, <8  x i16> %rhs) {
 ; X64-NEXT:    vpmovzxwd {{.*#+}} ymm1 = xmm1[0],zero,xmm1[1],zero,xmm1[2],zero,xmm1[3],zero,xmm1[4],zero,xmm1[5],zero,xmm1[6],zero,xmm1[7],zero
 ; X64-NEXT:    vpmovsxwd %xmm0, %ymm0
 ; X64-NEXT:    vpsravd %ymm1, %ymm0, %ymm0
-; X64-NEXT:    vextracti128 $1, %ymm0, %xmm1
-; X64-NEXT:    vpackssdw %xmm1, %xmm0, %xmm0
+; X64-NEXT:    vpshufb {{.*#+}} ymm0 = ymm0[0,1,4,5,8,9,12,13,8,9,12,13,12,13,14,15,16,17,20,21,24,25,28,29,24,25,28,29,28,29,30,31]
+; X64-NEXT:    vpermq {{.*#+}} ymm0 = ymm0[0,2,2,3]
+; X64-NEXT:    # kill: %XMM0<def> %XMM0<kill> %YMM0<kill>
 ; X64-NEXT:    vzeroupper
 ; X64-NEXT:    retq
   %res = ashr <8 x i16> %lhs, %rhs

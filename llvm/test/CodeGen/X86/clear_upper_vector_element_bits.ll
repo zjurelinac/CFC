@@ -21,8 +21,8 @@ define <2 x i64> @_clearupper2xi64a(<2 x i64>) nounwind {
 ;
 ; AVX2-LABEL: _clearupper2xi64a:
 ; AVX2:       # BB#0:
-; AVX2-NEXT:    vxorps %xmm1, %xmm1, %xmm1
-; AVX2-NEXT:    vblendps {{.*#+}} xmm0 = xmm0[0],xmm1[1],xmm0[2],xmm1[3]
+; AVX2-NEXT:    vpxor %xmm1, %xmm1, %xmm1
+; AVX2-NEXT:    vpblendd {{.*#+}} xmm0 = xmm0[0],xmm1[1],xmm0[2],xmm1[3]
 ; AVX2-NEXT:    retq
   %x0 = extractelement <2 x i64> %0, i32 0
   %x1 = extractelement <2 x i64> %0, i32 1
@@ -43,11 +43,17 @@ define <4 x i64> @_clearupper4xi64a(<4 x i64>) nounwind {
 ; SSE-NEXT:    andps %xmm2, %xmm1
 ; SSE-NEXT:    retq
 ;
-; AVX-LABEL: _clearupper4xi64a:
-; AVX:       # BB#0:
-; AVX-NEXT:    vxorps %xmm1, %xmm1, %xmm1
-; AVX-NEXT:    vblendps {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7]
-; AVX-NEXT:    retq
+; AVX1-LABEL: _clearupper4xi64a:
+; AVX1:       # BB#0:
+; AVX1-NEXT:    vxorps %ymm1, %ymm1, %ymm1
+; AVX1-NEXT:    vblendps {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7]
+; AVX1-NEXT:    retq
+;
+; AVX2-LABEL: _clearupper4xi64a:
+; AVX2:       # BB#0:
+; AVX2-NEXT:    vpxor %ymm1, %ymm1, %ymm1
+; AVX2-NEXT:    vpblendd {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7]
+; AVX2-NEXT:    retq
   %x0 = extractelement <4 x i64> %0, i32 0
   %x1 = extractelement <4 x i64> %0, i32 1
   %x2 = extractelement <4 x i64> %0, i32 2
@@ -112,7 +118,7 @@ define <8 x i32> @_clearupper8xi32a(<8 x i32>) nounwind {
 ;
 ; AVX2-LABEL: _clearupper8xi32a:
 ; AVX2:       # BB#0:
-; AVX2-NEXT:    vpxor %xmm1, %xmm1, %xmm1
+; AVX2-NEXT:    vpxor %ymm1, %ymm1, %ymm1
 ; AVX2-NEXT:    vpblendw {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7],ymm0[8],ymm1[9],ymm0[10],ymm1[11],ymm0[12],ymm1[13],ymm0[14],ymm1[15]
 ; AVX2-NEXT:    retq
   %x0 = extractelement <8 x i32> %0, i32 0
@@ -640,8 +646,8 @@ define <2 x i64> @_clearupper2xi64b(<2 x i64>) nounwind {
 ;
 ; AVX2-LABEL: _clearupper2xi64b:
 ; AVX2:       # BB#0:
-; AVX2-NEXT:    vxorps %xmm1, %xmm1, %xmm1
-; AVX2-NEXT:    vblendps {{.*#+}} xmm0 = xmm0[0],xmm1[1],xmm0[2],xmm1[3]
+; AVX2-NEXT:    vpxor %xmm1, %xmm1, %xmm1
+; AVX2-NEXT:    vpblendd {{.*#+}} xmm0 = xmm0[0],xmm1[1],xmm0[2],xmm1[3]
 ; AVX2-NEXT:    retq
   %x32 = bitcast <2 x i64> %0 to <4 x i32>
   %r0 = insertelement <4 x i32> %x32, i32 zeroinitializer, i32 1
@@ -658,11 +664,17 @@ define <4 x i64> @_clearupper4xi64b(<4 x i64>) nounwind {
 ; SSE-NEXT:    andps %xmm2, %xmm1
 ; SSE-NEXT:    retq
 ;
-; AVX-LABEL: _clearupper4xi64b:
-; AVX:       # BB#0:
-; AVX-NEXT:    vxorps %xmm1, %xmm1, %xmm1
-; AVX-NEXT:    vblendps {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7]
-; AVX-NEXT:    retq
+; AVX1-LABEL: _clearupper4xi64b:
+; AVX1:       # BB#0:
+; AVX1-NEXT:    vxorps %ymm1, %ymm1, %ymm1
+; AVX1-NEXT:    vblendps {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7]
+; AVX1-NEXT:    retq
+;
+; AVX2-LABEL: _clearupper4xi64b:
+; AVX2:       # BB#0:
+; AVX2-NEXT:    vpxor %ymm1, %ymm1, %ymm1
+; AVX2-NEXT:    vpblendd {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7]
+; AVX2-NEXT:    retq
   %x32 = bitcast <4 x i64> %0 to <8 x i32>
   %r0 = insertelement <8 x i32> %x32, i32 zeroinitializer, i32 1
   %r1 = insertelement <8 x i32> %r0,  i32 zeroinitializer, i32 3
@@ -707,7 +719,7 @@ define <8 x i32> @_clearupper8xi32b(<8 x i32>) nounwind {
 ;
 ; AVX2-LABEL: _clearupper8xi32b:
 ; AVX2:       # BB#0:
-; AVX2-NEXT:    vpxor %xmm1, %xmm1, %xmm1
+; AVX2-NEXT:    vpxor %ymm1, %ymm1, %ymm1
 ; AVX2-NEXT:    vpblendw {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7],ymm0[8],ymm1[9],ymm0[10],ymm1[11],ymm0[12],ymm1[13],ymm0[14],ymm1[15]
 ; AVX2-NEXT:    retq
   %x16 = bitcast <8 x i32> %0 to <16 x i16>
@@ -754,14 +766,25 @@ define <16 x i16> @_clearupper16xi16b(<16 x i16>) nounwind {
 ; SSE-NEXT:    andps %xmm2, %xmm1
 ; SSE-NEXT:    retq
 ;
-; AVX-LABEL: _clearupper16xi16b:
-; AVX:       # BB#0:
-; AVX-NEXT:    vmovaps {{.*#+}} xmm1 = [255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0]
-; AVX-NEXT:    vandps %xmm1, %xmm0, %xmm2
-; AVX-NEXT:    vextractf128 $1, %ymm0, %xmm0
-; AVX-NEXT:    vandps %xmm1, %xmm0, %xmm0
-; AVX-NEXT:    vinsertf128 $1, %xmm0, %ymm2, %ymm0
-; AVX-NEXT:    retq
+; AVX1-LABEL: _clearupper16xi16b:
+; AVX1:       # BB#0:
+; AVX1-NEXT:    vmovaps {{.*#+}} xmm1 = [255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0]
+; AVX1-NEXT:    vandps %xmm1, %xmm0, %xmm2
+; AVX1-NEXT:    vblendps {{.*#+}} ymm2 = ymm2[0,1,2,3],ymm0[4,5,6,7]
+; AVX1-NEXT:    vextractf128 $1, %ymm0, %xmm0
+; AVX1-NEXT:    vandps %xmm1, %xmm0, %xmm0
+; AVX1-NEXT:    vinsertf128 $1, %xmm0, %ymm2, %ymm0
+; AVX1-NEXT:    retq
+;
+; AVX2-LABEL: _clearupper16xi16b:
+; AVX2:       # BB#0:
+; AVX2-NEXT:    vmovdqa {{.*#+}} xmm1 = [255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0]
+; AVX2-NEXT:    vpand %xmm1, %xmm0, %xmm2
+; AVX2-NEXT:    vpblendd {{.*#+}} ymm2 = ymm2[0,1,2,3],ymm0[4,5,6,7]
+; AVX2-NEXT:    vextracti128 $1, %ymm0, %xmm0
+; AVX2-NEXT:    vpand %xmm1, %xmm0, %xmm0
+; AVX2-NEXT:    vinserti128 $1, %xmm0, %ymm2, %ymm0
+; AVX2-NEXT:    retq
   %x8 = bitcast <16 x i16> %0 to <32 x i8>
   %r0  = insertelement <32 x i8> %x8,  i8 zeroinitializer, i32 1
   %r1  = insertelement <32 x i8> %r0,  i8 zeroinitializer, i32 3
@@ -853,9 +876,9 @@ define <16 x i8> @_clearupper16xi8b(<16 x i8>) nounwind {
 ; SSE-NEXT:    andb $15, %r11b
 ; SSE-NEXT:    movb %r11b, -{{[0-9]+}}(%rsp)
 ; SSE-NEXT:    movb $0, -{{[0-9]+}}(%rsp)
-; SSE-NEXT:    movsd {{.*#+}} xmm0 = mem[0],zero
-; SSE-NEXT:    movsd {{.*#+}} xmm1 = mem[0],zero
-; SSE-NEXT:    movlhps {{.*#+}} xmm0 = xmm0[0],xmm1[0]
+; SSE-NEXT:    movq {{.*#+}} xmm0 = mem[0],zero
+; SSE-NEXT:    movq {{.*#+}} xmm1 = mem[0],zero
+; SSE-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm1[0]
 ; SSE-NEXT:    popq %rbx
 ; SSE-NEXT:    popq %r14
 ; SSE-NEXT:    retq
@@ -1031,9 +1054,9 @@ define <32 x i8> @_clearupper32xi8b(<32 x i8>) nounwind {
 ; SSE-NEXT:    andb $15, %r11b
 ; SSE-NEXT:    movb %r11b, -{{[0-9]+}}(%rsp)
 ; SSE-NEXT:    movb $0, -{{[0-9]+}}(%rsp)
-; SSE-NEXT:    movsd {{.*#+}} xmm0 = mem[0],zero
-; SSE-NEXT:    movsd {{.*#+}} xmm2 = mem[0],zero
-; SSE-NEXT:    movlhps {{.*#+}} xmm0 = xmm0[0],xmm2[0]
+; SSE-NEXT:    movq {{.*#+}} xmm0 = mem[0],zero
+; SSE-NEXT:    movq {{.*#+}} xmm2 = mem[0],zero
+; SSE-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm2[0]
 ; SSE-NEXT:    popq %rbx
 ; SSE-NEXT:    popq %r14
 ; SSE-NEXT:    retq
@@ -1046,21 +1069,20 @@ define <32 x i8> @_clearupper32xi8b(<32 x i8>) nounwind {
 ; AVX1-NEXT:    pushq %r13
 ; AVX1-NEXT:    pushq %r12
 ; AVX1-NEXT:    pushq %rbx
-; AVX1-NEXT:    vmovaps %xmm0, -{{[0-9]+}}(%rsp)
-; AVX1-NEXT:    movq -{{[0-9]+}}(%rsp), %rcx
-; AVX1-NEXT:    movq -{{[0-9]+}}(%rsp), %rdx
+; AVX1-NEXT:    vmovq %xmm0, %rcx
 ; AVX1-NEXT:    movq %rcx, %r8
 ; AVX1-NEXT:    movq %rcx, %r9
 ; AVX1-NEXT:    movq %rcx, %r10
 ; AVX1-NEXT:    movq %rcx, %r11
 ; AVX1-NEXT:    movq %rcx, %r14
 ; AVX1-NEXT:    movq %rcx, %r15
+; AVX1-NEXT:    vpextrq $1, %xmm0, %rdx
 ; AVX1-NEXT:    movq %rdx, %r12
 ; AVX1-NEXT:    movq %rdx, %r13
-; AVX1-NEXT:    movq %rdx, %rdi
-; AVX1-NEXT:    movq %rdx, %rax
-; AVX1-NEXT:    movq %rdx, %rsi
 ; AVX1-NEXT:    movq %rdx, %rbx
+; AVX1-NEXT:    movq %rdx, %rax
+; AVX1-NEXT:    movq %rdx, %rdi
+; AVX1-NEXT:    movq %rdx, %rsi
 ; AVX1-NEXT:    movq %rdx, %rbp
 ; AVX1-NEXT:    andb $15, %dl
 ; AVX1-NEXT:    movb %dl, -{{[0-9]+}}(%rsp)
@@ -1070,18 +1092,18 @@ define <32 x i8> @_clearupper32xi8b(<32 x i8>) nounwind {
 ; AVX1-NEXT:    shrq $56, %rbp
 ; AVX1-NEXT:    andb $15, %bpl
 ; AVX1-NEXT:    movb %bpl, -{{[0-9]+}}(%rsp)
-; AVX1-NEXT:    shrq $48, %rbx
-; AVX1-NEXT:    andb $15, %bl
-; AVX1-NEXT:    movb %bl, -{{[0-9]+}}(%rsp)
-; AVX1-NEXT:    shrq $40, %rsi
+; AVX1-NEXT:    shrq $48, %rsi
 ; AVX1-NEXT:    andb $15, %sil
 ; AVX1-NEXT:    movb %sil, -{{[0-9]+}}(%rsp)
+; AVX1-NEXT:    shrq $40, %rdi
+; AVX1-NEXT:    andb $15, %dil
+; AVX1-NEXT:    movb %dil, -{{[0-9]+}}(%rsp)
 ; AVX1-NEXT:    shrq $32, %rax
 ; AVX1-NEXT:    andb $15, %al
 ; AVX1-NEXT:    movb %al, -{{[0-9]+}}(%rsp)
-; AVX1-NEXT:    shrq $24, %rdi
-; AVX1-NEXT:    andb $15, %dil
-; AVX1-NEXT:    movb %dil, -{{[0-9]+}}(%rsp)
+; AVX1-NEXT:    shrq $24, %rbx
+; AVX1-NEXT:    andb $15, %bl
+; AVX1-NEXT:    movb %bl, -{{[0-9]+}}(%rsp)
 ; AVX1-NEXT:    shrq $16, %r13
 ; AVX1-NEXT:    andb $15, %r13b
 ; AVX1-NEXT:    movb %r13b, -{{[0-9]+}}(%rsp)
@@ -1217,21 +1239,20 @@ define <32 x i8> @_clearupper32xi8b(<32 x i8>) nounwind {
 ; AVX2-NEXT:    pushq %r13
 ; AVX2-NEXT:    pushq %r12
 ; AVX2-NEXT:    pushq %rbx
-; AVX2-NEXT:    vmovdqa %xmm0, -{{[0-9]+}}(%rsp)
-; AVX2-NEXT:    movq -{{[0-9]+}}(%rsp), %rcx
-; AVX2-NEXT:    movq -{{[0-9]+}}(%rsp), %rdx
+; AVX2-NEXT:    vmovq %xmm0, %rcx
 ; AVX2-NEXT:    movq %rcx, %r8
 ; AVX2-NEXT:    movq %rcx, %r9
 ; AVX2-NEXT:    movq %rcx, %r10
 ; AVX2-NEXT:    movq %rcx, %r11
 ; AVX2-NEXT:    movq %rcx, %r14
 ; AVX2-NEXT:    movq %rcx, %r15
+; AVX2-NEXT:    vpextrq $1, %xmm0, %rdx
 ; AVX2-NEXT:    movq %rdx, %r12
 ; AVX2-NEXT:    movq %rdx, %r13
-; AVX2-NEXT:    movq %rdx, %rdi
-; AVX2-NEXT:    movq %rdx, %rax
-; AVX2-NEXT:    movq %rdx, %rsi
 ; AVX2-NEXT:    movq %rdx, %rbx
+; AVX2-NEXT:    movq %rdx, %rax
+; AVX2-NEXT:    movq %rdx, %rdi
+; AVX2-NEXT:    movq %rdx, %rsi
 ; AVX2-NEXT:    movq %rdx, %rbp
 ; AVX2-NEXT:    andb $15, %dl
 ; AVX2-NEXT:    movb %dl, -{{[0-9]+}}(%rsp)
@@ -1241,18 +1262,18 @@ define <32 x i8> @_clearupper32xi8b(<32 x i8>) nounwind {
 ; AVX2-NEXT:    shrq $56, %rbp
 ; AVX2-NEXT:    andb $15, %bpl
 ; AVX2-NEXT:    movb %bpl, -{{[0-9]+}}(%rsp)
-; AVX2-NEXT:    shrq $48, %rbx
-; AVX2-NEXT:    andb $15, %bl
-; AVX2-NEXT:    movb %bl, -{{[0-9]+}}(%rsp)
-; AVX2-NEXT:    shrq $40, %rsi
+; AVX2-NEXT:    shrq $48, %rsi
 ; AVX2-NEXT:    andb $15, %sil
 ; AVX2-NEXT:    movb %sil, -{{[0-9]+}}(%rsp)
+; AVX2-NEXT:    shrq $40, %rdi
+; AVX2-NEXT:    andb $15, %dil
+; AVX2-NEXT:    movb %dil, -{{[0-9]+}}(%rsp)
 ; AVX2-NEXT:    shrq $32, %rax
 ; AVX2-NEXT:    andb $15, %al
 ; AVX2-NEXT:    movb %al, -{{[0-9]+}}(%rsp)
-; AVX2-NEXT:    shrq $24, %rdi
-; AVX2-NEXT:    andb $15, %dil
-; AVX2-NEXT:    movb %dil, -{{[0-9]+}}(%rsp)
+; AVX2-NEXT:    shrq $24, %rbx
+; AVX2-NEXT:    andb $15, %bl
+; AVX2-NEXT:    movb %bl, -{{[0-9]+}}(%rsp)
 ; AVX2-NEXT:    shrq $16, %r13
 ; AVX2-NEXT:    andb $15, %r13b
 ; AVX2-NEXT:    movb %r13b, -{{[0-9]+}}(%rsp)
@@ -1430,8 +1451,8 @@ define <2 x i64> @_clearupper2xi64c(<2 x i64>) nounwind {
 ;
 ; AVX2-LABEL: _clearupper2xi64c:
 ; AVX2:       # BB#0:
-; AVX2-NEXT:    vxorps %xmm1, %xmm1, %xmm1
-; AVX2-NEXT:    vblendps {{.*#+}} xmm0 = xmm0[0],xmm1[1],xmm0[2],xmm1[3]
+; AVX2-NEXT:    vpxor %xmm1, %xmm1, %xmm1
+; AVX2-NEXT:    vpblendd {{.*#+}} xmm0 = xmm0[0],xmm1[1],xmm0[2],xmm1[3]
 ; AVX2-NEXT:    retq
   %r = and <2 x i64> <i64 4294967295, i64 4294967295>, %0
   ret <2 x i64> %r
@@ -1445,11 +1466,17 @@ define <4 x i64> @_clearupper4xi64c(<4 x i64>) nounwind {
 ; SSE-NEXT:    andps %xmm2, %xmm1
 ; SSE-NEXT:    retq
 ;
-; AVX-LABEL: _clearupper4xi64c:
-; AVX:       # BB#0:
-; AVX-NEXT:    vxorps %xmm1, %xmm1, %xmm1
-; AVX-NEXT:    vblendps {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7]
-; AVX-NEXT:    retq
+; AVX1-LABEL: _clearupper4xi64c:
+; AVX1:       # BB#0:
+; AVX1-NEXT:    vxorps %ymm1, %ymm1, %ymm1
+; AVX1-NEXT:    vblendps {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7]
+; AVX1-NEXT:    retq
+;
+; AVX2-LABEL: _clearupper4xi64c:
+; AVX2:       # BB#0:
+; AVX2-NEXT:    vpxor %ymm1, %ymm1, %ymm1
+; AVX2-NEXT:    vpblendd {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7]
+; AVX2-NEXT:    retq
   %r = and <4 x i64> <i64 4294967295, i64 4294967295, i64 4294967295, i64 4294967295>, %0
   ret <4 x i64> %r
 }
@@ -1484,7 +1511,7 @@ define <8 x i32> @_clearupper8xi32c(<8 x i32>) nounwind {
 ;
 ; AVX2-LABEL: _clearupper8xi32c:
 ; AVX2:       # BB#0:
-; AVX2-NEXT:    vpxor %xmm1, %xmm1, %xmm1
+; AVX2-NEXT:    vpxor %ymm1, %ymm1, %ymm1
 ; AVX2-NEXT:    vpblendw {{.*#+}} ymm0 = ymm0[0],ymm1[1],ymm0[2],ymm1[3],ymm0[4],ymm1[5],ymm0[6],ymm1[7],ymm0[8],ymm1[9],ymm0[10],ymm1[11],ymm0[12],ymm1[13],ymm0[14],ymm1[15]
 ; AVX2-NEXT:    retq
   %r = and <8 x i32> <i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535>, %0

@@ -1,5 +1,5 @@
-; RUN: llc -O0 -mtriple=amdgcn--amdhsa -march=amdgcn -amdgpu-spill-sgpr-to-vgpr=0 -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefix=VMEM -check-prefix=GCN %s
-; RUN: llc -O0 -mtriple=amdgcn--amdhsa -march=amdgcn -amdgpu-spill-sgpr-to-vgpr=1 -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefix=VGPR -check-prefix=GCN %s
+; RUN: llc -O0 -mtriple=amdgcn--amdhsa -march=amdgcn -amdgpu-spill-sgpr-to-vgpr=0 -verify-machineinstrs < %s | FileCheck -check-prefix=VMEM -check-prefix=GCN %s
+; RUN: llc -O0 -mtriple=amdgcn--amdhsa -march=amdgcn -amdgpu-spill-sgpr-to-vgpr=1 -verify-machineinstrs < %s | FileCheck -check-prefix=VGPR -check-prefix=GCN %s
 
 ; Verify registers used for tracking exec mask changes when all
 ; registers are spilled at the end of the block. The SGPR spill
@@ -20,6 +20,7 @@
 ; GCN: v_cmp_eq_u32_e64 [[CMP0:s\[[0-9]+:[0-9]\]]], s{{[0-9]+}}, v0
 ; GCN: s_mov_b64 s{{\[}}[[SAVEEXEC_LO:[0-9]+]]:[[SAVEEXEC_HI:[0-9]+]]{{\]}}, exec
 ; GCN: s_and_b64 s{{\[}}[[ANDEXEC_LO:[0-9]+]]:[[ANDEXEC_HI:[0-9]+]]{{\]}}, s{{\[}}[[SAVEEXEC_LO]]:[[SAVEEXEC_HI]]{{\]}}, [[CMP0]]
+; GCN: s_xor_b64 s{{\[}}[[SAVEEXEC_LO]]:[[SAVEEXEC_HI]]{{\]}}, s{{\[}}[[ANDEXEC_LO]]:[[ANDEXEC_HI]]{{\]}}, s{{\[}}[[SAVEEXEC_LO]]:[[SAVEEXEC_HI]]{{\]}}
 
 ; Spill saved exec
 ; VGPR: v_writelane_b32 [[SPILL_VGPR:v[0-9]+]], s[[SAVEEXEC_LO]], [[SAVEEXEC_LO_LANE:[0-9]+]]
@@ -100,6 +101,7 @@ endif:
 
 ; GCN: s_mov_b64 s{{\[}}[[SAVEEXEC_LO:[0-9]+]]:[[SAVEEXEC_HI:[0-9]+]]{{\]}}, exec
 ; GCN: s_and_b64 s{{\[}}[[ANDEXEC_LO:[0-9]+]]:[[ANDEXEC_HI:[0-9]+]]{{\]}}, s{{\[}}[[SAVEEXEC_LO:[0-9]+]]:[[SAVEEXEC_HI:[0-9]+]]{{\]}}, [[CMP0]]
+; GCN: s_xor_b64 s{{\[}}[[SAVEEXEC_LO]]:[[SAVEEXEC_HI]]{{\]}}, s{{\[}}[[ANDEXEC_LO]]:[[ANDEXEC_HI]]{{\]}}, s{{\[}}[[SAVEEXEC_LO]]:[[SAVEEXEC_HI]]{{\]}}
 
 ; Spill load
 ; GCN: buffer_store_dword [[LOAD0]], off, s[0:3], s7 offset:4 ; 4-byte Folded Spill
@@ -171,7 +173,7 @@ end:
 ; GCN: {{^}}; BB#0:
 
 ; GCN: s_mov_b32 m0, -1
-; GCN: ds_read_b32 [[LOAD0:v[0-9]+]]
+; VMEM: ds_read_b32 [[LOAD0:v[0-9]+]]
 
 ; GCN: v_cmp_ne_u32_e64 [[CMP0:s\[[0-9]+:[0-9]\]]], v0,
 

@@ -1,4 +1,4 @@
-//===- MachineSink.cpp - Sinking for machine instructions -----------------===//
+//===-- MachineSink.cpp - Sinking for machine instructions ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,7 +18,6 @@
 
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -33,16 +32,14 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
-#include "llvm/IR/BasicBlock.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -96,12 +93,12 @@ namespace {
     // Remember which edges we are about to split.
     // This is different from CEBCandidates since those edges
     // will be split.
-    SetVector<std::pair<MachineBasicBlock *, MachineBasicBlock *>> ToSplit;
+    SetVector<std::pair<MachineBasicBlock*, MachineBasicBlock*> > ToSplit;
 
     SparseBitVector<> RegsToClearKillFlags;
 
-    using AllSuccsCache =
-        std::map<MachineBasicBlock *, SmallVector<MachineBasicBlock *, 4>>;
+    typedef std::map<MachineBasicBlock *, SmallVector<MachineBasicBlock *, 4>>
+        AllSuccsCache;
 
   public:
     static char ID; // Pass identification
@@ -136,7 +133,6 @@ namespace {
     bool isWorthBreakingCriticalEdge(MachineInstr &MI,
                                      MachineBasicBlock *From,
                                      MachineBasicBlock *To);
-
     /// \brief Postpone the splitting of the given critical
     /// edge (\p From, \p To).
     ///
@@ -154,7 +150,6 @@ namespace {
                                    MachineBasicBlock *To,
                                    bool BreakPHIEdge);
     bool SinkInstruction(MachineInstr &MI, bool &SawStore,
-
                          AllSuccsCache &AllSuccessors);
     bool AllUsesDominatedByBlock(unsigned Reg, MachineBasicBlock *MBB,
                                  MachineBasicBlock *DefMBB,
@@ -177,9 +172,7 @@ namespace {
 } // end anonymous namespace
 
 char MachineSinking::ID = 0;
-
 char &llvm::MachineSinkingID = MachineSinking::ID;
-
 INITIALIZE_PASS_BEGIN(MachineSinking, DEBUG_TYPE,
                       "Machine code sinking", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
@@ -577,6 +570,7 @@ bool MachineSinking::isProfitableToSinkTo(unsigned Reg, MachineInstr &MI,
 SmallVector<MachineBasicBlock *, 4> &
 MachineSinking::GetAllSortedSuccessors(MachineInstr &MI, MachineBasicBlock *MBB,
                                        AllSuccsCache &AllSuccessors) const {
+
   // Do we have the sorted successors in cache ?
   auto Succs = AllSuccessors.find(MBB);
   if (Succs != AllSuccessors.end())
@@ -717,7 +711,7 @@ MachineSinking::FindSuccToSinkTo(MachineInstr &MI, MachineBasicBlock *MBB,
 static bool SinkingPreventsImplicitNullCheck(MachineInstr &MI,
                                              const TargetInstrInfo *TII,
                                              const TargetRegisterInfo *TRI) {
-  using MachineBranchPredicate = TargetInstrInfo::MachineBranchPredicate;
+  typedef TargetInstrInfo::MachineBranchPredicate MachineBranchPredicate;
 
   auto *MBB = MI.getParent();
   if (MBB->pred_size() != 1)
@@ -789,6 +783,7 @@ bool MachineSinking::SinkInstruction(MachineInstr &MI, bool &SawStore,
   // If there are no outputs, it must have side-effects.
   if (!SuccToSinkTo)
     return false;
+
 
   // If the instruction to move defines a dead physical register which is live
   // when leaving the basic block, don't move it because it could turn into a

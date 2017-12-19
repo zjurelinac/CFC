@@ -314,6 +314,7 @@ TEST_F(BinaryStreamTest, MutableBinaryByteStreamBounds) {
 
   // For every combination of input stream and output stream.
   for (auto &Stream : Streams) {
+    MutableArrayRef<uint8_t> Buffer;
     ASSERT_EQ(InputData.size(), Stream.Input->getLength());
 
     // 1. Try two reads that are supposed to work.  One from offset 0, and one
@@ -354,6 +355,7 @@ TEST_F(BinaryStreamTest, FixedStreamArray) {
   initializeInput(IntBytes, alignof(uint32_t));
 
   for (auto &Stream : Streams) {
+    MutableArrayRef<uint8_t> Buffer;
     ASSERT_EQ(InputData.size(), Stream.Input->getLength());
 
     FixedStreamArray<uint32_t> Array(*Stream.Input);
@@ -533,6 +535,7 @@ TEST_F(BinaryStreamTest, StreamReaderEnum) {
 
     BinaryStreamReader Reader(*Stream.Input);
 
+    ArrayRef<MyEnum> Array;
     FixedStreamArray<MyEnum> FSA;
 
     for (size_t I = 0; I < Enums.size(); ++I) {

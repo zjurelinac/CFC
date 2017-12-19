@@ -1,4 +1,4 @@
-//===- LoopIdiomRecognize.cpp - Loop idiom recognition --------------------===//
+//===-- LoopIdiomRecognize.cpp - Loop idiom recognition -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -38,64 +38,32 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar/LoopIdiomRecognize.h"
-#include "llvm/ADT/APInt.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/BasicAliasAnalysis.h"
+#include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/LoopAccessAnalysis.h"
-#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/MemoryLocation.h"
-#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/IR/Attributes.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constant.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DebugLoc.h"
-#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Dominators.h"
-#include "llvm/IR/GlobalValue.h"
-#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/InstrTypes.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/User.h"
-#include "llvm/IR/Value.h"
-#include "llvm/IR/ValueHandle.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
-#include <utility>
-#include <vector>
-
 using namespace llvm;
 
 #define DEBUG_TYPE "loop-idiom"
@@ -112,7 +80,7 @@ static cl::opt<bool> UseLIRCodeSizeHeurs(
 namespace {
 
 class LoopIdiomRecognize {
-  Loop *CurLoop = nullptr;
+  Loop *CurLoop;
   AliasAnalysis *AA;
   DominatorTree *DT;
   LoopInfo *LI;
@@ -128,21 +96,20 @@ public:
                               TargetLibraryInfo *TLI,
                               const TargetTransformInfo *TTI,
                               const DataLayout *DL)
-      : AA(AA), DT(DT), LI(LI), SE(SE), TLI(TLI), TTI(TTI), DL(DL) {}
+      : CurLoop(nullptr), AA(AA), DT(DT), LI(LI), SE(SE), TLI(TLI), TTI(TTI),
+        DL(DL) {}
 
   bool runOnLoop(Loop *L);
 
 private:
-  using StoreList = SmallVector<StoreInst *, 8>;
-  using StoreListMap = MapVector<Value *, StoreList>;
-
+  typedef SmallVector<StoreInst *, 8> StoreList;
+  typedef MapVector<Value *, StoreList> StoreListMap;
   StoreListMap StoreRefsForMemset;
   StoreListMap StoreRefsForMemsetPattern;
   StoreList StoreRefsForMemcpy;
   bool HasMemset;
   bool HasMemsetPattern;
   bool HasMemcpy;
-
   /// Return code for isLegalStore()
   enum LegalStoreKind {
     None = 0,
@@ -197,7 +164,6 @@ private:
 class LoopIdiomRecognizeLegacyPass : public LoopPass {
 public:
   static char ID;
-
   explicit LoopIdiomRecognizeLegacyPass() : LoopPass(ID) {
     initializeLoopIdiomRecognizeLegacyPassPass(
         *PassRegistry::getPassRegistry());
@@ -224,16 +190,14 @@ public:
 
   /// This transformation requires natural loop information & requires that
   /// loop preheaders be inserted into the CFG.
+  ///
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<TargetLibraryInfoWrapperPass>();
     AU.addRequired<TargetTransformInfoWrapperPass>();
     getLoopAnalysisUsage(AU);
   }
 };
-
-} // end anonymous namespace
-
-char LoopIdiomRecognizeLegacyPass::ID = 0;
+} // End anonymous namespace.
 
 PreservedAnalyses LoopIdiomRecognizePass::run(Loop &L, LoopAnalysisManager &AM,
                                               LoopStandardAnalysisResults &AR,
@@ -247,6 +211,7 @@ PreservedAnalyses LoopIdiomRecognizePass::run(Loop &L, LoopAnalysisManager &AM,
   return getLoopPassPreservedAnalyses();
 }
 
+char LoopIdiomRecognizeLegacyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopIdiomRecognizeLegacyPass, "loop-idiom",
                       "Recognize loop idioms", false, false)
 INITIALIZE_PASS_DEPENDENCY(LoopPass)
@@ -389,6 +354,7 @@ static Constant *getMemSetPatternValue(Value *V, const DataLayout *DL) {
 
 LoopIdiomRecognize::LegalStoreKind
 LoopIdiomRecognize::isLegalStore(StoreInst *SI) {
+
   // Don't touch volatile stores.
   if (SI->isVolatile())
     return LegalStoreKind::None;
@@ -814,41 +780,6 @@ static const SCEV *getStartForNegStride(const SCEV *Start, const SCEV *BECount,
   return SE->getMinusSCEV(Start, Index);
 }
 
-/// Compute the number of bytes as a SCEV from the backedge taken count.
-///
-/// This also maps the SCEV into the provided type and tries to handle the
-/// computation in a way that will fold cleanly.
-static const SCEV *getNumBytes(const SCEV *BECount, Type *IntPtr,
-                               unsigned StoreSize, Loop *CurLoop,
-                               const DataLayout *DL, ScalarEvolution *SE) {
-  const SCEV *NumBytesS;
-  // The # stored bytes is (BECount+1)*Size.  Expand the trip count out to
-  // pointer size if it isn't already.
-  //
-  // If we're going to need to zero extend the BE count, check if we can add
-  // one to it prior to zero extending without overflow. Provided this is safe,
-  // it allows better simplification of the +1.
-  if (DL->getTypeSizeInBits(BECount->getType()) <
-          DL->getTypeSizeInBits(IntPtr) &&
-      SE->isLoopEntryGuardedByCond(
-          CurLoop, ICmpInst::ICMP_NE, BECount,
-          SE->getNegativeSCEV(SE->getOne(BECount->getType())))) {
-    NumBytesS = SE->getZeroExtendExpr(
-        SE->getAddExpr(BECount, SE->getOne(BECount->getType()), SCEV::FlagNUW),
-        IntPtr);
-  } else {
-    NumBytesS = SE->getAddExpr(SE->getTruncateOrZeroExtend(BECount, IntPtr),
-                               SE->getOne(IntPtr), SCEV::FlagNUW);
-  }
-
-  // And scale it based on the store size.
-  if (StoreSize != 1) {
-    NumBytesS = SE->getMulExpr(NumBytesS, SE->getConstant(IntPtr, StoreSize),
-                               SCEV::FlagNUW);
-  }
-  return NumBytesS;
-}
-
 /// processLoopStridedStore - We see a strided store of some value.  If we can
 /// transform this into a memset or memset_pattern in the loop preheader, do so.
 bool LoopIdiomRecognize::processLoopStridedStore(
@@ -906,8 +837,16 @@ bool LoopIdiomRecognize::processLoopStridedStore(
 
   // Okay, everything looks good, insert the memset.
 
+  // The # stored bytes is (BECount+1)*Size.  Expand the trip count out to
+  // pointer size if it isn't already.
+  BECount = SE->getTruncateOrZeroExtend(BECount, IntPtr);
+
   const SCEV *NumBytesS =
-      getNumBytes(BECount, IntPtr, StoreSize, CurLoop, DL, SE);
+      SE->getAddExpr(BECount, SE->getOne(IntPtr), SCEV::FlagNUW);
+  if (StoreSize != 1) {
+    NumBytesS = SE->getMulExpr(NumBytesS, SE->getConstant(IntPtr, StoreSize),
+                               SCEV::FlagNUW);
+  }
 
   // TODO: ideally we should still be able to generate memset if SCEV expander
   // is taught to generate the dependencies at the latest point.
@@ -1037,8 +976,16 @@ bool LoopIdiomRecognize::processLoopStoreOfLoopLoad(StoreInst *SI,
 
   // Okay, everything is safe, we can transform this!
 
+  // The # stored bytes is (BECount+1)*Size.  Expand the trip count out to
+  // pointer size if it isn't already.
+  BECount = SE->getTruncateOrZeroExtend(BECount, IntPtrTy);
+
   const SCEV *NumBytesS =
-      getNumBytes(BECount, IntPtrTy, StoreSize, CurLoop, DL, SE);
+      SE->getAddExpr(BECount, SE->getOne(IntPtrTy), SCEV::FlagNUW);
+
+  if (StoreSize != 1)
+    NumBytesS = SE->getMulExpr(NumBytesS, SE->getConstant(IntPtrTy, StoreSize),
+                               SCEV::FlagNUW);
 
   Value *NumBytes =
       Expander.expandCodeFor(NumBytesS, IntPtrTy, Preheader->getTerminator());
@@ -1063,12 +1010,16 @@ bool LoopIdiomRecognize::processLoopStoreOfLoopLoad(StoreInst *SI,
     if (StoreSize > TTI->getAtomicMemIntrinsicMaxElementSize())
       return false;
 
-    // Create the call.
-    // Note that unordered atomic loads/stores are *required* by the spec to
-    // have an alignment but non-atomic loads/stores may not.
     NewCall = Builder.CreateElementUnorderedAtomicMemCpy(
-        StoreBasePtr, SI->getAlignment(), LoadBasePtr, LI->getAlignment(),
-        NumBytes, StoreSize);
+        StoreBasePtr, LoadBasePtr, NumBytes, StoreSize);
+
+    // Propagate alignment info onto the pointer args. Note that unordered
+    // atomic loads/stores are *required* by the spec to have an alignment
+    // but non-atomic loads/stores may not.
+    NewCall->addParamAttr(0, Attribute::getWithAlignment(NewCall->getContext(),
+                                                         SI->getAlignment()));
+    NewCall->addParamAttr(1, Attribute::getWithAlignment(NewCall->getContext(),
+                                                         LI->getAlignment()));
   }
   NewCall->setDebugLoc(SI->getDebugLoc());
 
@@ -1322,9 +1273,9 @@ static bool detectCTLZIdiom(Loop *CurLoop, PHINode *&PhiX,
   // step 2: detect instructions corresponding to "x.next = x >> 1"
   if (!DefX || DefX->getOpcode() != Instruction::AShr)
     return false;
-  ConstantInt *Shft = dyn_cast<ConstantInt>(DefX->getOperand(1));
-  if (!Shft || !Shft->isOne())
-    return false;
+  if (ConstantInt *Shft = dyn_cast<ConstantInt>(DefX->getOperand(1)))
+    if (!Shft || !Shft->isOne())
+      return false;
   VarX = DefX->getOperand(0);
 
   // step 3: Check the recurrence of variable X
@@ -1518,7 +1469,7 @@ static CallInst *createCTLZIntrinsic(IRBuilder<> &IRBuilder, Value *Val,
 ///   PhiX = PHI [InitX, DefX]
 ///   CntInst = CntPhi + 1
 ///   DefX = PhiX >> 1
-///   LOOP_BODY
+//    LOOP_BODY
 ///   Br: loop if (DefX != 0)
 /// Use(CntPhi) or Use(CntInst)
 ///

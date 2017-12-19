@@ -314,9 +314,6 @@ class MachineFunction {
   /// Map of invoke call site index values to associated begin EH_LABEL.
   DenseMap<MCSymbol*, unsigned> CallSiteMap;
 
-  /// CodeView label annotations.
-  std::vector<std::pair<MCSymbol *, MDNode *>> CodeViewAnnotations;
-
   bool CallsEHReturn = false;
   bool CallsUnwindInit = false;
   bool HasEHFunclets = false;
@@ -628,22 +625,13 @@ public:
   MachineInstr *CreateMachineInstr(const MCInstrDesc &MCID, const DebugLoc &DL,
                                    bool NoImp = false);
 
-  /// Create a new MachineInstr which is a copy of \p Orig, identical in all
-  /// ways except the instruction has no parent, prev, or next. Bundling flags
-  /// are reset.
+  /// CloneMachineInstr - Create a new MachineInstr which is a copy of the
+  /// 'Orig' instruction, identical in all ways except the instruction
+  /// has no parent, prev, or next.
   ///
-  /// Note: Clones a single instruction, not whole instruction bundles.
-  /// Does not perform target specific adjustments; consider using
-  /// TargetInstrInfo::duplicate() instead.
+  /// See also TargetInstrInfo::duplicate() for target-specific fixes to cloned
+  /// instructions.
   MachineInstr *CloneMachineInstr(const MachineInstr *Orig);
-
-  /// Clones instruction or the whole instruction bundle \p Orig and insert
-  /// into \p MBB before \p InsertBefore.
-  ///
-  /// Note: Does not perform target specific adjustments; consider using
-  /// TargetInstrInfo::duplicate() intead.
-  MachineInstr &CloneMachineInstrBundle(MachineBasicBlock &MBB,
-      MachineBasicBlock::iterator InsertBefore, const MachineInstr &Orig);
 
   /// DeleteMachineInstr - Delete the given MachineInstr.
   void DeleteMachineInstr(MachineInstr *MI);
@@ -833,15 +821,6 @@ public:
   /// Return true if the begin label has a call site number associated with it.
   bool hasCallSiteBeginLabel(MCSymbol *BeginLabel) const {
     return CallSiteMap.count(BeginLabel);
-  }
-
-  /// Record annotations associated with a particular label.
-  void addCodeViewAnnotation(MCSymbol *Label, MDNode *MD) {
-    CodeViewAnnotations.push_back({Label, MD});
-  }
-
-  ArrayRef<std::pair<MCSymbol *, MDNode *>> getCodeViewAnnotations() const {
-    return CodeViewAnnotations;
   }
 
   /// Return a reference to the C++ typeinfo for the current function.

@@ -32,6 +32,10 @@ static bool optimizeSQRT(CallInst *Call, Function *CalledFunc,
   if (Call->onlyReadsMemory())
     return false;
 
+  // The call must have the expected result type.
+  if (!Call->getType()->isFloatingPointTy())
+    return false;
+
   // Do the following transformation:
   //
   // (before)
@@ -92,14 +96,11 @@ static bool runPartiallyInlineLibCalls(Function &F, TargetLibraryInfo *TLI,
       if (!Call || !(CalledFunc = Call->getCalledFunction()))
         continue;
 
-      if (Call->isNoBuiltin())
-        continue;
-
       // Skip if function either has local linkage or is not a known library
       // function.
       LibFunc LF;
-      if (CalledFunc->hasLocalLinkage() ||
-          !TLI->getLibFunc(*CalledFunc, LF) || !TLI->has(LF))
+      if (CalledFunc->hasLocalLinkage() || !CalledFunc->hasName() ||
+          !TLI->getLibFunc(CalledFunc->getName(), LF))
         continue;
 
       switch (LF) {

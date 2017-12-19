@@ -76,7 +76,7 @@ class X86AsmBackend : public MCAsmBackend {
 public:
   X86AsmBackend(const Target &T, StringRef CPU)
       : MCAsmBackend(), CPU(CPU),
-        MaxNopLength((CPU == "slm" || CPU == "silvermont") ? 7 : 15) {
+        MaxNopLength((CPU == "slm") ? 7 : 15) {
     HasNopl = CPU != "generic" && CPU != "i386" && CPU != "i486" &&
               CPU != "i586" && CPU != "pentium" && CPU != "pentium-mmx" &&
               CPU != "i686" && CPU != "k6" && CPU != "k6-2" && CPU != "k6-3" &&
@@ -389,8 +389,7 @@ public:
   ELFX86_32AsmBackend(const Target &T, uint8_t OSABI, StringRef CPU)
     : ELFX86AsmBackend(T, OSABI, CPU) {}
 
-  std::unique_ptr<MCObjectWriter>
-  createObjectWriter(raw_pwrite_stream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86ELFObjectWriter(OS, /*IsELF64*/ false, OSABI, ELF::EM_386);
   }
 };
@@ -400,8 +399,7 @@ public:
   ELFX86_X32AsmBackend(const Target &T, uint8_t OSABI, StringRef CPU)
       : ELFX86AsmBackend(T, OSABI, CPU) {}
 
-  std::unique_ptr<MCObjectWriter>
-  createObjectWriter(raw_pwrite_stream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86ELFObjectWriter(OS, /*IsELF64*/ false, OSABI,
                                     ELF::EM_X86_64);
   }
@@ -412,8 +410,7 @@ public:
   ELFX86_IAMCUAsmBackend(const Target &T, uint8_t OSABI, StringRef CPU)
       : ELFX86AsmBackend(T, OSABI, CPU) {}
 
-  std::unique_ptr<MCObjectWriter>
-  createObjectWriter(raw_pwrite_stream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86ELFObjectWriter(OS, /*IsELF64*/ false, OSABI,
                                     ELF::EM_IAMCU);
   }
@@ -424,8 +421,7 @@ public:
   ELFX86_64AsmBackend(const Target &T, uint8_t OSABI, StringRef CPU)
     : ELFX86AsmBackend(T, OSABI, CPU) {}
 
-  std::unique_ptr<MCObjectWriter>
-  createObjectWriter(raw_pwrite_stream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86ELFObjectWriter(OS, /*IsELF64*/ true, OSABI, ELF::EM_X86_64);
   }
 };
@@ -447,8 +443,7 @@ public:
         .Default(MCAsmBackend::getFixupKind(Name));
   }
 
-  std::unique_ptr<MCObjectWriter>
-  createObjectWriter(raw_pwrite_stream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86WinCOFFObjectWriter(OS, Is64Bit);
   }
 };
@@ -809,8 +804,7 @@ public:
                          StringRef CPU)
       : DarwinX86AsmBackend(T, MRI, CPU, false) {}
 
-  std::unique_ptr<MCObjectWriter>
-  createObjectWriter(raw_pwrite_stream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86MachObjectWriter(OS, /*Is64Bit=*/false,
                                      MachO::CPU_TYPE_I386,
                                      MachO::CPU_SUBTYPE_I386_ALL);
@@ -830,8 +824,7 @@ public:
                          StringRef CPU, MachO::CPUSubTypeX86 st)
       : DarwinX86AsmBackend(T, MRI, CPU, true), Subtype(st) {}
 
-  std::unique_ptr<MCObjectWriter>
-  createObjectWriter(raw_pwrite_stream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86MachObjectWriter(OS, /*Is64Bit=*/true,
                                      MachO::CPU_TYPE_X86_64, Subtype);
   }

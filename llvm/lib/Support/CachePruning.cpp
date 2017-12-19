@@ -161,7 +161,7 @@ bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
       return false;
     }
   } else {
-    if (Policy.Interval != seconds(0)) {
+    if (Policy.Interval == seconds(0)) {
       // Check whether the time stamp is older than our pruning interval.
       // If not, do nothing.
       const auto TimeStampModTime = FileStatus.getLastModificationTime();
@@ -182,9 +182,19 @@ bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
   bool ShouldComputeSize =
       (Policy.MaxSizePercentageOfAvailableSpace > 0 || Policy.MaxSizeBytes > 0);
 
-  // Keep track of space. Needs to be kept ordered by size for determinism.
+  // Keep track of space
   std::set<std::pair<uint64_t, std::string>> FileSizes;
   uint64_t TotalSize = 0;
+  // Helper to add a path to the set of files to consider for size-based
+  // pruning, sorted by size.
+  auto AddToFileListForSizePruning =
+      [&](StringRef Path) {
+        if (!ShouldComputeSize)
+          return;
+        TotalSize += FileStatus.getSize();
+        FileSizes.insert(
+            std::make_pair(FileStatus.getSize(), std::string(Path)));
+      };
 
   // Walk the entire directory cache, looking for unused files.
   std::error_code EC;
@@ -202,14 +212,13 @@ bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
 
     // Look at this file. If we can't stat it, there's nothing interesting
     // there.
-    ErrorOr<sys::fs::basic_file_status> StatusOrErr = File->status();
-    if (!StatusOrErr) {
+    if (sys::fs::status(File->path(), FileStatus)) {
       DEBUG(dbgs() << "Ignore " << File->path() << " (can't stat)\n");
       continue;
     }
 
     // If the file hasn't been used recently enough, delete it
-    const auto FileAccessTime = StatusOrErr->getLastAccessedTime();
+    const auto FileAccessTime = FileStatus.getLastAccessedTime();
     auto FileAge = CurrentTime - FileAccessTime;
     if (FileAge > Policy.Expiration) {
       DEBUG(dbgs() << "Remove " << File->path() << " ("
@@ -219,10 +228,7 @@ bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
     }
 
     // Leave it here for now, but add it to the list of size-based pruning.
-    if (!ShouldComputeSize)
-      continue;
-    TotalSize += StatusOrErr->getSize();
-    FileSizes.insert({StatusOrErr->getSize(), std::string(File->path())});
+    AddToFileListForSizePruning(File->path());
   }
 
   // Prune for size now if needed

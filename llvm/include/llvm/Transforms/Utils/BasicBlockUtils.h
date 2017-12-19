@@ -1,4 +1,4 @@
-//===- Transform/Utils/BasicBlockUtils.h - BasicBlock Utils -----*- C++ -*-===//
+//===-- Transform/Utils/BasicBlockUtils.h - BasicBlock Utils ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -25,15 +25,13 @@
 
 namespace llvm {
 
-class DominatorTree;
-class Function;
-class Instruction;
-class LoopInfo;
-class MDNode;
 class MemoryDependenceResults;
+class DominatorTree;
+class LoopInfo;
+class Instruction;
+class MDNode;
 class ReturnInst;
 class TargetLibraryInfo;
-class Value;
 
 /// Delete the specified block, which must have no predecessors.
 void DeleteDeadBlock(BasicBlock *BB);
@@ -120,6 +118,7 @@ struct CriticalEdgeSplittingOptions {
 /// IndirectBrInst.  Splitting these edges will almost always create an invalid
 /// program because the address of the new block won't be the one that is jumped
 /// to.
+///
 BasicBlock *SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
                               const CriticalEdgeSplittingOptions &Options =
                                   CriticalEdgeSplittingOptions());
@@ -195,6 +194,7 @@ BasicBlock *SplitBlock(BasicBlock *Old, Instruction *SplitPt,
 /// no other analyses. In particular, it does not preserve LoopSimplify
 /// (because it's complicated to handle the case where one of the edges being
 /// split is an exit of a loop with other exits).
+///
 BasicBlock *SplitBlockPredecessors(BasicBlock *BB, ArrayRef<BasicBlock *> Preds,
                                    const char *Suffix,
                                    DominatorTree *DT = nullptr,
@@ -212,6 +212,7 @@ BasicBlock *SplitBlockPredecessors(BasicBlock *BB, ArrayRef<BasicBlock *> Preds,
 /// no other analyses. In particular, it does not preserve LoopSimplify
 /// (because it's complicated to handle the case where one of the edges being
 /// split is an exit of a loop with other exits).
+///
 void SplitLandingPadPredecessors(BasicBlock *OrigBB,
                                  ArrayRef<BasicBlock *> Preds,
                                  const char *Suffix, const char *Suffix2,

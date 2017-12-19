@@ -12,7 +12,6 @@
 
 #include "ARMAsmBackend.h"
 #include "llvm/BinaryFormat/MachO.h"
-#include "llvm/MC/MCObjectWriter.h"
 
 namespace llvm {
 class ARMAsmBackendDarwin : public ARMAsmBackend {
@@ -24,8 +23,7 @@ public:
       : ARMAsmBackend(T, TT, /* IsLittleEndian */ true), MRI(MRI), Subtype(st) {
   }
 
-  std::unique_ptr<MCObjectWriter>
-  createObjectWriter(raw_pwrite_stream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createARMMachObjectWriter(OS, /*Is64Bit=*/false, MachO::CPU_TYPE_ARM,
                                      Subtype);
   }

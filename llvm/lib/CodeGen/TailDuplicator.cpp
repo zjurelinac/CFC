@@ -12,14 +12,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/TailDuplicator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -28,15 +27,16 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineSSAUpdater.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/CodeGen/TailDuplicator.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
 #include <cassert>
 #include <iterator>
@@ -75,7 +75,7 @@ static cl::opt<bool>
 static cl::opt<unsigned> TailDupLimit("tail-dup-limit", cl::init(~0U),
                                       cl::Hidden);
 
-void TailDuplicator::initMF(MachineFunction &MFin, bool PreRegAlloc,
+void TailDuplicator::initMF(MachineFunction &MFin,
                             const MachineBranchProbabilityInfo *MBPIin,
                             bool LayoutModeIn, unsigned TailDupSizeIn) {
   MF = &MFin;
@@ -89,7 +89,7 @@ void TailDuplicator::initMF(MachineFunction &MFin, bool PreRegAlloc,
   assert(MBPI != nullptr && "Machine Branch Probability Info required");
 
   LayoutMode = LayoutModeIn;
-  this->PreRegAlloc = PreRegAlloc;
+  PreRegAlloc = MRI->isSSA();
 }
 
 static void VerifyPHIs(MachineFunction &MF, bool CheckExtra) {
@@ -369,10 +369,10 @@ void TailDuplicator::duplicateInstruction(
     MachineInstr *MI, MachineBasicBlock *TailBB, MachineBasicBlock *PredBB,
     DenseMap<unsigned, RegSubRegPair> &LocalVRMap,
     const DenseSet<unsigned> &UsedByPhi) {
-  MachineInstr &NewMI = TII->duplicate(*PredBB, PredBB->end(), *MI);
+  MachineInstr *NewMI = TII->duplicate(*MI, *MF);
   if (PreRegAlloc) {
-    for (unsigned i = 0, e = NewMI.getNumOperands(); i != e; ++i) {
-      MachineOperand &MO = NewMI.getOperand(i);
+    for (unsigned i = 0, e = NewMI->getNumOperands(); i != e; ++i) {
+      MachineOperand &MO = NewMI->getOperand(i);
       if (!MO.isReg())
         continue;
       unsigned Reg = MO.getReg();
@@ -443,6 +443,7 @@ void TailDuplicator::duplicateInstruction(
       }
     }
   }
+  PredBB->insert(PredBB->instr_end(), NewMI);
 }
 
 /// After FromBB is tail duplicated into its predecessor blocks, the successors
@@ -824,8 +825,10 @@ bool TailDuplicator::tailDuplicate(bool IsSimple, MachineBasicBlock *TailBB,
     // Clone the contents of TailBB into PredBB.
     DenseMap<unsigned, RegSubRegPair> LocalVRMap;
     SmallVector<std::pair<unsigned, RegSubRegPair>, 4> CopyInfos;
-    for (MachineBasicBlock::iterator I = TailBB->begin(), E = TailBB->end();
-         I != E; /* empty */) {
+    // Use instr_iterator here to properly handle bundles, e.g.
+    // ARM Thumb2 IT block.
+    MachineBasicBlock::instr_iterator I = TailBB->instr_begin();
+    while (I != TailBB->instr_end()) {
       MachineInstr *MI = &*I;
       ++I;
       if (MI->isPHI()) {

@@ -38,30 +38,24 @@
 #ifndef LLVM_ANALYSIS_ALIASANALYSIS_H
 #define LLVM_ANALYSIS_ALIASANALYSIS_H
 
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/CallSite.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/Pass.h"
-#include <cstdint>
-#include <functional>
-#include <memory>
-#include <vector>
 
 namespace llvm {
-
-class AnalysisUsage;
 class BasicAAResult;
-class BasicBlock;
+class LoadInst;
+class StoreInst;
+class VAArgInst;
+class DataLayout;
+class Pass;
+class AnalysisUsage;
+class MemTransferInst;
+class MemIntrinsic;
 class DominatorTree;
 class OrderedBasicBlock;
-class Value;
 
 /// The possible results of an alias query.
 ///
@@ -506,33 +500,43 @@ public:
     return getModRefInfo(I, MemoryLocation(P, Size));
   }
 
-  /// Check whether or not an instruction may read or write the optionally
-  /// specified memory location.
+  /// Check whether or not an instruction may read or write memory (without
+  /// regard to a specific location).
   ///
+  /// For function calls, this delegates to the alias-analysis specific
+  /// call-site mod-ref behavior queries. Otherwise it delegates to the generic
+  /// mod ref information query without a location.
+  ModRefInfo getModRefInfo(const Instruction *I) {
+    if (auto CS = ImmutableCallSite(I)) {
+      auto MRB = getModRefBehavior(CS);
+      if ((MRB & MRI_ModRef) == MRI_ModRef)
+        return MRI_ModRef;
+      if (MRB & MRI_Ref)
+        return MRI_Ref;
+      if (MRB & MRI_Mod)
+        return MRI_Mod;
+      return MRI_NoModRef;
+    }
+
+    return getModRefInfo(I, MemoryLocation());
+  }
+
+  /// Check whether or not an instruction may read or write the specified
+  /// memory location.
+  ///
+  /// Note explicitly that getModRefInfo considers the effects of reading and
+  /// writing the memory location, and not the effect of ordering relative to
+  /// other instructions.  Thus, a volatile load is considered to be Ref,
+  /// because it does not actually write memory, it just can't be reordered
+  /// relative to other volatiles (or removed).  Atomic ordered loads/stores are
+  /// considered ModRef ATM because conservatively, the visible effect appears
+  /// as if memory was written, not just an ordering constraint.
   ///
   /// An instruction that doesn't read or write memory may be trivially LICM'd
   /// for example.
   ///
-  /// For function calls, this delegates to the alias-analysis specific
-  /// call-site mod-ref behavior queries. Otherwise it delegates to the specific
-  /// helpers above.
-  ModRefInfo getModRefInfo(const Instruction *I,
-                           const Optional<MemoryLocation> &OptLoc) {
-    if (OptLoc == None) {
-      if (auto CS = ImmutableCallSite(I)) {
-        auto MRB = getModRefBehavior(CS);
-        if ((MRB & MRI_ModRef) == MRI_ModRef)
-          return MRI_ModRef;
-        if (MRB & MRI_Ref)
-          return MRI_Ref;
-        if (MRB & MRI_Mod)
-          return MRI_Mod;
-        return MRI_NoModRef;
-      }
-    }
-
-    const MemoryLocation &Loc = OptLoc.getValueOr(MemoryLocation());
-
+  /// This primarily delegates to specific helpers above.
+  ModRefInfo getModRefInfo(const Instruction *I, const MemoryLocation &Loc) {
     switch (I->getOpcode()) {
     case Instruction::VAArg:  return getModRefInfo((const VAArgInst*)I, Loc);
     case Instruction::Load:   return getModRefInfo((const LoadInst*)I,  Loc);
@@ -616,7 +620,6 @@ public:
 
 private:
   class Concept;
-
   template <typename T> class Model;
 
   template <typename T> friend class AAResultBase;
@@ -630,7 +633,7 @@ private:
 
 /// Temporary typedef for legacy code that uses a generic \c AliasAnalysis
 /// pointer or reference.
-using AliasAnalysis = AAResults;
+typedef AAResults AliasAnalysis;
 
 /// A private abstract base class describing the concept of an individual alias
 /// analysis implementation.
@@ -711,7 +714,7 @@ public:
   explicit Model(AAResultT &Result, AAResults &AAR) : Result(Result) {
     Result.setAAResults(&AAR);
   }
-  ~Model() override = default;
+  ~Model() override {}
 
   void setAAResults(AAResults *NewAAR) override { Result.setAAResults(NewAAR); }
 
@@ -821,7 +824,7 @@ protected:
     }
   };
 
-  explicit AAResultBase() = default;
+  explicit AAResultBase() {}
 
   // Provide all the copy and move constructors so that derived types aren't
   // constrained.
@@ -870,6 +873,7 @@ public:
   }
 };
 
+
 /// Return true if this pointer is returned by a noalias function.
 bool isNoAliasCall(const Value *V);
 
@@ -906,7 +910,7 @@ bool isIdentifiedFunctionLocal(const Value *V);
 /// ensure the analysis itself is registered with its AnalysisManager.
 class AAManager : public AnalysisInfoMixin<AAManager> {
 public:
-  using Result = AAResults;
+  typedef AAResults Result;
 
   /// Register a specific AA result.
   template <typename AnalysisT> void registerFunctionAnalysis() {
@@ -927,7 +931,6 @@ public:
 
 private:
   friend AnalysisInfoMixin<AAManager>;
-
   static AnalysisKey Key;
 
   SmallVector<void (*)(Function &F, FunctionAnalysisManager &AM,
@@ -998,6 +1001,6 @@ AAResults createLegacyPMAAResults(Pass &P, Function &F, BasicAAResult &BAR);
 /// sure the analyses required by \p createLegacyPMAAResults are available.
 void getAAResultsAnalysisUsage(AnalysisUsage &AU);
 
-} // end namespace llvm
+} // End llvm namespace
 
-#endif // LLVM_ANALYSIS_ALIASANALYSIS_H
+#endif

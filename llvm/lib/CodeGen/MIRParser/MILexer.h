@@ -1,4 +1,4 @@
-//===- MILexer.h - Lexer for machine instructions ---------------*- C++ -*-===//
+//===- MILexer.h - Lexer for machine instructions -------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,7 +18,7 @@
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include <string>
+#include <functional>
 
 namespace llvm {
 
@@ -68,7 +68,6 @@ struct MIToken {
     kw_cfi_def_cfa_register,
     kw_cfi_def_cfa_offset,
     kw_cfi_def_cfa,
-    kw_cfi_restore,
     kw_blockaddress,
     kw_intrinsic,
     kw_target_index,
@@ -101,7 +100,6 @@ struct MIToken {
     md_alias_scope,
     md_noalias,
     md_range,
-    md_diexpr,
 
     // Identifier tokens
     Identifier,
@@ -134,14 +132,14 @@ struct MIToken {
   };
 
 private:
-  TokenKind Kind = Error;
+  TokenKind Kind;
   StringRef Range;
   StringRef StringValue;
   std::string StringValueStorage;
   APSInt IntVal;
 
 public:
-  MIToken() = default;
+  MIToken() : Kind(Error) {}
 
   MIToken &reset(TokenKind Kind, StringRef Range);
 
@@ -205,4 +203,4 @@ StringRef lexMIToken(
 
 } // end namespace llvm
 
-#endif // LLVM_LIB_CODEGEN_MIRPARSER_MILEXER_H
+#endif

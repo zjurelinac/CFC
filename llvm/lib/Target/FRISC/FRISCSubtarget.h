@@ -14,14 +14,15 @@
 #ifndef FRISCSUBTARGET_H
 #define FRISCSUBTARGET_H
 
-#include "FRISC.h"
-//#include "FRISCFrameLowering.h"     --
-//#include "FRISCISelLowering.h"      --todo
-//#include "FRISCInstrInfo.h"         --
-//#include "FRISCSelectionDAGInfo.h"  --
+#include "FRISCFrameLowering.h"
+#include "FRISCISelLowering.h"
+#include "FRISCInstrInfo.h"
+#include "llvm/CodeGen/SelectionDAGTargetInfo.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include <string>
+
 
 #define GET_SUBTARGETINFO_HEADER
 #include "FRISCGenSubtargetInfo.inc"
@@ -36,9 +37,7 @@ private:
   const DataLayout DL;       // Calculates type size & alignment.
   FRISCInstrInfo InstrInfo;
   FRISCTargetLowering TLInfo;
-  FRISCSelectionDAGInfo TSInfo;
   FRISCFrameLowering FrameLowering;
-  InstrItineraryData InstrItins;
 
 public:
   /// This constructor initializes the data members to match that
@@ -47,12 +46,9 @@ public:
   FRISCSubtarget(const Triple &TT, StringRef CPU,
                StringRef FS, FRISCTargetMachine &TM);
 
-  /// getInstrItins - Return the instruction itineraries based on subtarget
-  /// selection.
-  const InstrItineraryData *getInstrItineraryData() const override {
-    return &InstrItins;
+  const FRISCInstrInfo *getInstrInfo() const override {
+    return &InstrInfo;
   }
-  const FRISCInstrInfo *getInstrInfo() const override { return &InstrInfo; }
   const FRISCRegisterInfo *getRegisterInfo() const override {
     return &InstrInfo.getRegisterInfo();
   }
@@ -61,9 +57,6 @@ public:
   }
   const FRISCFrameLowering *getFrameLowering() const override {
     return &FrameLowering;
-  }
-  const FRISCSelectionDAGInfo *getSelectionDAGInfo() const override {
-    return &TSInfo;
   }
 
   /// ParseSubtargetFeatures - Parses features string setting specified

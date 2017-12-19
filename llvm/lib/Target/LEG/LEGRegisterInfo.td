@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-//  Declarations that describe the LEG register file 
+//  Declarations that describe the LEG register file
 //===----------------------------------------------------------------------===//
 
 class LEGReg<bits<16> Enc, string n> : Register<n> {

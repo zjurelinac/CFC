@@ -19,9 +19,6 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
@@ -31,6 +28,9 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <cassert>
 
 using namespace llvm;
@@ -428,8 +428,8 @@ MachineRegisterInfo::EmitLiveInCopies(MachineBasicBlock *EntryMBB,
   // Emit the copies into the top of the block.
   for (unsigned i = 0, e = LiveIns.size(); i != e; ++i)
     if (LiveIns[i].second) {
-      if (use_nodbg_empty(LiveIns[i].second)) {
-        // The livein has no non-dbg uses. Drop it.
+      if (use_empty(LiveIns[i].second)) {
+        // The livein has no uses. Drop it.
         //
         // It would be preferable to have isel avoid creating live-in
         // records for unused arguments in the first place, but it's
@@ -485,13 +485,6 @@ bool MachineRegisterInfo::isConstantPhysReg(unsigned PhysReg) const {
     if (!def_empty(*AI) || isAllocatable(*AI))
       return false;
   return true;
-}
-
-bool
-MachineRegisterInfo::isCallerPreservedOrConstPhysReg(unsigned PhysReg) const {
-  const TargetRegisterInfo *TRI = getTargetRegisterInfo();
-  return isConstantPhysReg(PhysReg) ||
-      TRI->isCallerPreservedPhysReg(PhysReg, *MF);
 }
 
 /// markUsesInDebugValueAsUndef - Mark every DBG_VALUE referencing the
@@ -607,22 +600,4 @@ void MachineRegisterInfo::setCalleeSavedRegs(ArrayRef<MCPhysReg> CSRs) {
   // (no more registers should be pushed).
   UpdatedCSRs.push_back(0);
   IsUpdatedCSRsInitialized = true;
-}
-
-bool MachineRegisterInfo::isReservedRegUnit(unsigned Unit) const {
-  const TargetRegisterInfo *TRI = getTargetRegisterInfo();
-  for (MCRegUnitRootIterator Root(Unit, TRI); Root.isValid(); ++Root) {
-    bool IsRootReserved = true;
-    for (MCSuperRegIterator Super(*Root, TRI, /*IncludeSelf=*/true);
-         Super.isValid(); ++Super) {
-      unsigned Reg = *Super;
-      if (!isReserved(Reg)) {
-        IsRootReserved = false;
-        break;
-      }
-    }
-    if (IsRootReserved)
-      return true;
-  }
-  return false;
 }

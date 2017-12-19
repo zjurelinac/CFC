@@ -34,8 +34,6 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/SlotIndexes.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -46,6 +44,8 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -269,9 +269,8 @@ void LiveIntervals::computeRegUnitRange(LiveRange &LR, unsigned Unit) {
   // may share super-registers. That's OK because createDeadDefs() is
   // idempotent. It is very rare for a register unit to have multiple roots, so
   // uniquing super-registers is probably not worthwhile.
-  bool IsReserved = false;
+  bool IsReserved = true;
   for (MCRegUnitRootIterator Root(Unit, TRI); Root.isValid(); ++Root) {
-    bool IsRootReserved = true;
     for (MCSuperRegIterator Super(*Root, TRI, /*IncludeSelf=*/true);
          Super.isValid(); ++Super) {
       unsigned Reg = *Super;
@@ -280,12 +279,9 @@ void LiveIntervals::computeRegUnitRange(LiveRange &LR, unsigned Unit) {
       // A register unit is considered reserved if all its roots and all their
       // super registers are reserved.
       if (!MRI->isReserved(Reg))
-        IsRootReserved = false;
+        IsReserved = false;
     }
-    IsReserved |= IsRootReserved;
   }
-  assert(IsReserved == MRI->isReservedRegUnit(Unit) &&
-         "reserved computation mismatch");
 
   // Now extend LR to reach all uses.
   // Ignore uses of reserved registers. We only track defs of those.
@@ -824,13 +820,7 @@ LiveIntervals::hasPHIKill(const LiveInterval &LI, const VNInfo *VNI) const {
 float LiveIntervals::getSpillWeight(bool isDef, bool isUse,
                                     const MachineBlockFrequencyInfo *MBFI,
                                     const MachineInstr &MI) {
-  return getSpillWeight(isDef, isUse, MBFI, MI.getParent());
-}
-
-float LiveIntervals::getSpillWeight(bool isDef, bool isUse,
-                                    const MachineBlockFrequencyInfo *MBFI,
-                                    const MachineBasicBlock *MBB) {
-  BlockFrequency Freq = MBFI->getBlockFreq(MBB);
+  BlockFrequency Freq = MBFI->getBlockFreq(MI.getParent());
   const float Scale = 1.0f / MBFI->getEntryFreq();
   return (isDef + isUse) * (Freq.getFrequency() * Scale);
 }
@@ -934,7 +924,7 @@ public:
   // kill flags. This is wasteful. Eventually, LiveVariables will strip all kill
   // flags, and postRA passes will use a live register utility instead.
   LiveRange *getRegUnitLI(unsigned Unit) {
-    if (UpdateFlags && !MRI.isReservedRegUnit(Unit))
+    if (UpdateFlags)
       return &LIS.getRegUnit(Unit);
     return LIS.getCachedRegUnit(Unit);
   }

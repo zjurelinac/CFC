@@ -15,11 +15,8 @@
 #define FRISCTARGETMACHINE_H
 
 #include "FRISC.h"
-#include "FRISCFrameLowering.h"
-#include "FRISCISelLowering.h"
-#include "FRISCInstrInfo.h"
-#include "FRISCSelectionDAGInfo.h"
 #include "FRISCSubtarget.h"
+#include "MCTargetDesc/FRISCMCTargetDesc.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -33,11 +30,11 @@ public:
   FRISCTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                    StringRef FS, const TargetOptions &Options, Reloc::Model RM,
                    CodeModel::Model CM, CodeGenOpt::Level OL);
-  
+
   const FRISCSubtarget * getSubtargetImpl() const {
     return &Subtarget;
   }
-  
+
   virtual const TargetSubtargetInfo *
   getSubtargetImpl(const Function &) const override {
     return &Subtarget;
@@ -45,7 +42,7 @@ public:
 
   // Pass Pipeline Configuration
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
-  
+
   TargetLoweringObjectFile *getObjFileLowering() const override {
     return TLOF.get();
   }

@@ -21,7 +21,7 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include <array>
 #include <cstdint>
 
@@ -220,9 +220,8 @@ public:
                      const MachineInstr &Orig,
                      const TargetRegisterInfo &TRI) const override;
 
-  MachineInstr &
-  duplicate(MachineBasicBlock &MBB, MachineBasicBlock::iterator InsertBefore,
-            const MachineInstr &Orig) const override;
+  MachineInstr *duplicate(MachineInstr &Orig,
+                          MachineFunction &MF) const override;
 
   const MachineInstrBuilder &AddDReg(MachineInstrBuilder &MIB, unsigned Reg,
                                      unsigned SubIdx, unsigned State,
@@ -468,10 +467,10 @@ bool isCondBranchOpcode(int Opc) {
   return Opc == ARM::Bcc || Opc == ARM::tBcc || Opc == ARM::t2Bcc;
 }
 
-static inline bool isJumpTableBranchOpcode(int Opc) {
-  return Opc == ARM::BR_JTr || Opc == ARM::BR_JTm_i12 ||
-         Opc == ARM::BR_JTm_rs || Opc == ARM::BR_JTadd || Opc == ARM::tBR_JTr ||
-         Opc == ARM::t2BR_JT;
+static inline
+bool isJumpTableBranchOpcode(int Opc) {
+  return Opc == ARM::BR_JTr || Opc == ARM::BR_JTm || Opc == ARM::BR_JTadd ||
+    Opc == ARM::tBR_JTr || Opc == ARM::t2BR_JT;
 }
 
 static inline

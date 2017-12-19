@@ -747,7 +747,7 @@ Loop *llvm::cloneLoopWithPreheader(BasicBlock *Before, BasicBlock *LoopDomBB,
   Function *F = OrigLoop->getHeader()->getParent();
   Loop *ParentLoop = OrigLoop->getParentLoop();
 
-  Loop *NewLoop = LI->AllocateLoop();
+  Loop *NewLoop = new Loop();
   if (ParentLoop)
     ParentLoop->addChildLoop(NewLoop);
   else

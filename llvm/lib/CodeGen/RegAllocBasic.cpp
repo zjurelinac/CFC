@@ -29,11 +29,11 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/PassAnalysisSupport.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <cstdlib>
 #include <queue>
 
@@ -143,17 +143,14 @@ INITIALIZE_PASS_END(RABasic, "regallocbasic", "Basic Register Allocator", false,
                     false)
 
 bool RABasic::LRE_CanEraseVirtReg(unsigned VirtReg) {
-  LiveInterval &LI = LIS->getInterval(VirtReg);
   if (VRM->hasPhys(VirtReg)) {
+    LiveInterval &LI = LIS->getInterval(VirtReg);
     Matrix->unassign(LI);
     aboutToRemoveInterval(LI);
     return true;
   }
   // Unassigned virtreg is probably in the priority queue.
   // RegAllocBase will erase it after dequeueing.
-  // Nonetheless, clear the live-range so that the debug
-  // dump will show the right state for that VirtReg.
-  LI.clear();
   return false;
 }
 

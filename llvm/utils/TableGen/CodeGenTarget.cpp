@@ -191,7 +191,7 @@ std::string llvm::getQualifiedName(const Record *R) {
 /// getTarget - Return the current instance of the Target class.
 ///
 CodeGenTarget::CodeGenTarget(RecordKeeper &records)
-  : Records(records), CGH(records) {
+  : Records(records) {
   std::vector<Record*> Targets = Records.getAllDerivedDefinitions("Target");
   if (Targets.size() == 0)
     PrintFatalError("ERROR: No 'Target' subclasses defined!");
@@ -266,7 +266,7 @@ Record *CodeGenTarget::getAsmWriter() const {
 
 CodeGenRegBank &CodeGenTarget::getRegBank() const {
   if (!RegBank)
-    RegBank = llvm::make_unique<CodeGenRegBank>(Records, getHwModes());
+    RegBank = llvm::make_unique<CodeGenRegBank>(Records);
   return *RegBank;
 }
 
@@ -285,19 +285,19 @@ const CodeGenRegister *CodeGenTarget::getRegisterByName(StringRef Name) const {
   return I->second;
 }
 
-std::vector<ValueTypeByHwMode> CodeGenTarget::getRegisterVTs(Record *R)
-      const {
+std::vector<MVT::SimpleValueType> CodeGenTarget::
+getRegisterVTs(Record *R) const {
   const CodeGenRegister *Reg = getRegBank().getReg(R);
-  std::vector<ValueTypeByHwMode> Result;
+  std::vector<MVT::SimpleValueType> Result;
   for (const auto &RC : getRegBank().getRegClasses()) {
     if (RC.contains(Reg)) {
-      ArrayRef<ValueTypeByHwMode> InVTs = RC.getValueTypes();
+      ArrayRef<MVT::SimpleValueType> InVTs = RC.getValueTypes();
       Result.insert(Result.end(), InVTs.begin(), InVTs.end());
     }
   }
 
   // Remove duplicates.
-  std::sort(Result.begin(), Result.end());
+  array_pod_sort(Result.begin(), Result.end());
   Result.erase(std::unique(Result.begin(), Result.end()), Result.end());
   return Result;
 }
@@ -308,7 +308,7 @@ void CodeGenTarget::ReadLegalValueTypes() const {
     LegalValueTypes.insert(LegalValueTypes.end(), RC.VTs.begin(), RC.VTs.end());
 
   // Remove duplicates.
-  std::sort(LegalValueTypes.begin(), LegalValueTypes.end());
+  array_pod_sort(LegalValueTypes.begin(), LegalValueTypes.end());
   LegalValueTypes.erase(std::unique(LegalValueTypes.begin(),
                                     LegalValueTypes.end()),
                         LegalValueTypes.end());
@@ -348,7 +348,7 @@ GetInstByName(const char *Name,
 void CodeGenTarget::ComputeInstrsByEnum() const {
   static const char *const FixedInstrs[] = {
 #define HANDLE_TARGET_OPCODE(OPC) #OPC,
-#include "llvm/CodeGen/TargetOpcodes.def"
+#include "llvm/Target/TargetOpcodes.def"
       nullptr};
   const auto &Insts = getInstructions();
   for (const char *const *p = FixedInstrs; *p; ++p) {

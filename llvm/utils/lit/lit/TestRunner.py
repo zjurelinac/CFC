@@ -217,20 +217,7 @@ def quote_windows_command(seq):
 # cmd is export or env
 def updateEnv(env, cmd):
     arg_idx = 1
-    unset_next_env_var = False
     for arg_idx, arg in enumerate(cmd.args[1:]):
-        # Support for the -u flag (unsetting) for env command
-        # e.g., env -u FOO -u BAR will remove both FOO and BAR
-        # from the environment.
-        if arg == '-u':
-            unset_next_env_var = True
-            continue
-        if unset_next_env_var:
-            unset_next_env_var = False
-            if arg in env.env:
-                del env.env[arg]
-            continue
-
         # Partition the string into KEY=VALUE.
         key, eq, val = arg.partition('=')
         # Stop if there was no equals.
@@ -251,7 +238,6 @@ def executeBuiltinEcho(cmd, shenv):
     # Some tests have un-redirected echo commands to help debug test failures.
     # Buffer our output and return it to the caller.
     is_redirected = True
-    encode = lambda x : x
     if stdout == subprocess.PIPE:
         is_redirected = False
         stdout = StringIO()
@@ -259,9 +245,6 @@ def executeBuiltinEcho(cmd, shenv):
         # Reopen stdout in binary mode to avoid CRLF translation. The versions
         # of echo we are replacing on Windows all emit plain LF, and the LLVM
         # tests now depend on this.
-        # When we open as binary, however, this also means that we have to write
-        # 'bytes' objects to stdout instead of 'str' objects.
-        encode = lit.util.to_bytes
         stdout = open(stdout.name, stdout.mode + 'b')
         opened_files.append((None, None, stdout, None))
 
@@ -282,18 +265,17 @@ def executeBuiltinEcho(cmd, shenv):
     def maybeUnescape(arg):
         if not interpret_escapes:
             return arg
-
-        arg = lit.util.to_bytes(arg)
-        codec = 'string_escape' if sys.version_info < (3,0) else 'unicode_escape'
-        return arg.decode(codec)
+        # Python string escapes and "echo" escapes are obviously different, but
+        # this should be enough for the LLVM test suite.
+        return arg.decode('string_escape')
 
     if args:
         for arg in args[:-1]:
-            stdout.write(encode(maybeUnescape(arg)))
-            stdout.write(encode(' '))
-        stdout.write(encode(maybeUnescape(args[-1])))
+            stdout.write(maybeUnescape(arg))
+            stdout.write(' ')
+        stdout.write(maybeUnescape(args[-1]))
     if write_newline:
-        stdout.write(encode('\n'))
+        stdout.write('\n')
 
     for (name, mode, f, path) in opened_files:
         f.close()
@@ -729,7 +711,6 @@ def executeScript(test, litConfig, tmpBase, commands, cwd):
       mode += 'b'  # Avoid CRLFs when writing bash scripts.
     f = open(script, mode)
     if isWin32CMDEXE:
-        f.write('@echo off\n')
         f.write('\nif %ERRORLEVEL% NEQ 0 EXIT\n'.join(commands))
     else:
         if test.config.pipefail:
@@ -806,13 +787,9 @@ def parseIntegratedTestScriptCommands(source_path, keywords):
             # command. Note that we take care to return regular strings in
             # Python 2, to avoid other code having to differentiate between the
             # str and unicode types.
-            #
-            # Opening the file in binary mode prevented Windows \r newline
-            # characters from being converted to Unix \n newlines, so manually
-            # strip those from the yielded lines.
             keyword,ln = match.groups()
             yield (line_number, to_string(keyword.decode('utf-8')),
-                   to_string(ln.decode('utf-8').rstrip('\r')))
+                   to_string(ln.decode('utf-8')))
     finally:
         f.close()
 
@@ -824,13 +801,6 @@ def getTempPaths(test):
     tmpDir = os.path.join(execdir, 'Output')
     tmpBase = os.path.join(tmpDir, execbase)
     return tmpDir, tmpBase
-
-def colonNormalizePath(path):
-    if kIsWindows:
-        return re.sub(r'^(.):', r'\1', path.replace('\\', '/'))
-    else:
-        assert path[0] == '/'
-        return path[1:]
 
 def getDefaultSubstitutions(test, tmpDir, tmpBase, normalize_slashes=False):
     sourcepath = test.getSourcePath()
@@ -867,15 +837,23 @@ def getDefaultSubstitutions(test, tmpDir, tmpBase, normalize_slashes=False):
             ('%/T', tmpDir.replace('\\', '/')),
             ])
 
-    # "%:[STpst]" are normalized paths without colons and without a leading
-    # slash.
-    substitutions.extend([
-            ('%:s', colonNormalizePath(sourcepath)),
-            ('%:S', colonNormalizePath(sourcedir)),
-            ('%:p', colonNormalizePath(sourcedir)),
-            ('%:t', colonNormalizePath(tmpBase + '.tmp')),
-            ('%:T', colonNormalizePath(tmpDir)),
-            ])
+    # "%:[STpst]" are paths without colons.
+    if kIsWindows:
+        substitutions.extend([
+                ('%:s', re.sub(r'^(.):', r'\1', sourcepath)),
+                ('%:S', re.sub(r'^(.):', r'\1', sourcedir)),
+                ('%:p', re.sub(r'^(.):', r'\1', sourcedir)),
+                ('%:t', re.sub(r'^(.):', r'\1', tmpBase) + '.tmp'),
+                ('%:T', re.sub(r'^(.):', r'\1', tmpDir)),
+                ])
+    else:
+        substitutions.extend([
+                ('%:s', sourcepath),
+                ('%:S', sourcedir),
+                ('%:p', sourcedir),
+                ('%:t', tmpBase + '.tmp'),
+                ('%:T', tmpDir),
+                ])
     return substitutions
 
 def applySubstitutions(script, substitutions):

@@ -7,10 +7,10 @@ add_llvm_library(LLVMTransformUtils
   BypassSlowDivision.cpp
   CloneFunction.cpp
   CloneModule.cpp
+  CmpInstAnalysis.cpp
   CodeExtractor.cpp
   CtorUtils.cpp
   DemoteRegToStack.cpp
-  EntryExitInstrumenter.cpp
   EscapeEnumerator.cpp
   Evaluator.cpp
   FlattenCFG.cpp

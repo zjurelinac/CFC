@@ -53,7 +53,8 @@ entry:
 ; NOCMOV-NEXT:   leal  12(%esp), %ecx
 ; NOCMOV-NEXT: [[TBB]]:
 ; NOCMOV-NEXT:   movl  (%ecx), %eax
-; NOCMOV-NEXT:   movl  4(%ecx), %edx
+; NOCMOV-NEXT:   orl  $4, %ecx
+; NOCMOV-NEXT:   movl  (%ecx), %edx
 ; NOCMOV-NEXT:   retl
 define i64 @test_select_fcmp_oeq_i64(float %a, float %b, i64 %c, i64 %d) #0 {
 entry:
@@ -81,7 +82,8 @@ entry:
 ; NOCMOV-NEXT:   leal  20(%esp), %ecx
 ; NOCMOV-NEXT: [[TBB]]:
 ; NOCMOV-NEXT:   movl  (%ecx), %eax
-; NOCMOV-NEXT:   movl  4(%ecx), %edx
+; NOCMOV-NEXT:   orl  $4, %ecx
+; NOCMOV-NEXT:   movl  (%ecx), %edx
 ; NOCMOV-NEXT:   retl
 define i64 @test_select_fcmp_une_i64(float %a, float %b, i64 %c, i64 %d) #0 {
 entry:

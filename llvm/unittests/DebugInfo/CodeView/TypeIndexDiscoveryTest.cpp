@@ -131,7 +131,7 @@ private:
   void discoverTypeIndicesInSymbols() {
     Refs.resize(Symbols.size());
     for (uint32_t I = 0; I < Symbols.size(); ++I)
-      discoverTypeIndicesInSymbol(Symbols[I], Refs[I]);
+      discoverTypeIndices(Symbols[I], Refs[I]);
   }
 
   // Helper function to write out a field list record with the given list
@@ -560,12 +560,7 @@ TEST_F(TypeIndexIteratorTest, CallerSym) {
   Callers.Indices.push_back(TypeIndex(4));
   Callers.Indices.push_back(TypeIndex(5));
   Callers.Indices.push_back(TypeIndex(6));
-  CallerSym Inlinees(SymbolRecordKind::InlineesSym);
-  Inlinees.Indices.push_back(TypeIndex(7));
-  Inlinees.Indices.push_back(TypeIndex(8));
-  Inlinees.Indices.push_back(TypeIndex(9));
-  writeSymbolRecords(Callees, Callers, Inlinees);
+  writeSymbolRecords(Callees, Callers);
   checkTypeReferences(0, TypeIndex(1), TypeIndex(2), TypeIndex(3));
   checkTypeReferences(1, TypeIndex(4), TypeIndex(5), TypeIndex(6));
-  checkTypeReferences(2, TypeIndex(7), TypeIndex(8), TypeIndex(9));
 }

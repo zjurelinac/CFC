@@ -42,6 +42,7 @@
 ; GCN-NEXT: s_cbranch_execnz [[LOOP_ENTRY]]
 
 ; GCN: ; BB#4: ; %bb9
+; GCN-NEXT: s_or_b64 exec, exec, [[MASK]]
 ; GCN-NEXT: s_endpgm
 define amdgpu_kernel void @break_loop(i32 %arg) #0 {
 bb:

@@ -63,9 +63,6 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/CodeGen/StackMaps.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/Attributes.h"
@@ -101,8 +98,11 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -168,7 +168,8 @@ bool FastISel::hasTrivialKill(const Value *V) {
 
   // No-op casts are trivially coalesced by fast-isel.
   if (const auto *Cast = dyn_cast<CastInst>(I))
-    if (Cast->isNoopCast(DL) && !hasTrivialKill(Cast->getOperand(0)))
+    if (Cast->isNoopCast(DL.getIntPtrType(Cast->getContext())) &&
+        !hasTrivialKill(Cast->getOperand(0)))
       return false;
 
   // Even the value might have only one use in the LLVM IR, it is possible that
@@ -1132,8 +1133,6 @@ bool FastISel::selectIntrinsicCall(const IntrinsicInst *II) {
   case Intrinsic::lifetime_end:
   // The donothing intrinsic does, well, nothing.
   case Intrinsic::donothing:
-  // Neither does the sideeffect intrinsic.
-  case Intrinsic::sideeffect:
   // Neither does the assume intrinsic; it's also OK not to codegen its operand.
   case Intrinsic::assume:
     return true;
@@ -1188,7 +1187,7 @@ bool FastISel::selectIntrinsicCall(const IntrinsicInst *II) {
         // into an indirect DBG_VALUE.
         BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
                 TII.get(TargetOpcode::DBG_VALUE), /*IsIndirect*/ true,
-                Op->getReg(), DI->getVariable(), DI->getExpression());
+                Op->getReg(), 0, DI->getVariable(), DI->getExpression());
       } else
         BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
                 TII.get(TargetOpcode::DBG_VALUE))
@@ -1213,32 +1212,35 @@ bool FastISel::selectIntrinsicCall(const IntrinsicInst *II) {
     if (!V) {
       // Currently the optimizer can produce this; insert an undef to
       // help debugging.  Probably the optimizer should not do this.
-      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II, false, 0U,
-              DI->getVariable(), DI->getExpression());
+      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II)
+          .addReg(0U)
+          .addImm(DI->getOffset())
+          .addMetadata(DI->getVariable())
+          .addMetadata(DI->getExpression());
     } else if (const auto *CI = dyn_cast<ConstantInt>(V)) {
       if (CI->getBitWidth() > 64)
         BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II)
             .addCImm(CI)
-            .addImm(0U)
+            .addImm(DI->getOffset())
             .addMetadata(DI->getVariable())
             .addMetadata(DI->getExpression());
       else
         BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II)
             .addImm(CI->getZExtValue())
-            .addImm(0U)
+            .addImm(DI->getOffset())
             .addMetadata(DI->getVariable())
             .addMetadata(DI->getExpression());
     } else if (const auto *CF = dyn_cast<ConstantFP>(V)) {
       BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II)
           .addFPImm(CF)
-          .addImm(0U)
+          .addImm(DI->getOffset())
           .addMetadata(DI->getVariable())
           .addMetadata(DI->getExpression());
     } else if (unsigned Reg = lookUpRegForValue(V)) {
       // FIXME: This does not handle register-indirect values at offset 0.
-      bool IsIndirect = false;
+      bool IsIndirect = DI->getOffset() != 0;
       BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II, IsIndirect, Reg,
-              DI->getVariable(), DI->getExpression());
+              DI->getOffset(), DI->getVariable(), DI->getExpression());
     } else {
       // We can't yet handle anything else here because it would require
       // generating code, thus altering codegen because of debug info.

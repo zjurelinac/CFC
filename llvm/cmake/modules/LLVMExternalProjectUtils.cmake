@@ -143,14 +143,12 @@ function(llvm_ExternalProject_Add name source_dir)
     CMAKE_ARGS ${${nameCanon}_CMAKE_ARGS}
                ${compiler_args}
                -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
-               -DCMAKE_SYSROOT=${CMAKE_SYSROOT}
                -DLLVM_BINARY_DIR=${PROJECT_BINARY_DIR}
                -DLLVM_CONFIG_PATH=$<TARGET_FILE:llvm-config>
                -DLLVM_ENABLE_WERROR=${LLVM_ENABLE_WERROR}
                -DPACKAGE_VERSION=${PACKAGE_VERSION}
                -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
-               -DCMAKE_EXPORT_COMPILE_COMMANDS=1
                ${ARG_CMAKE_ARGS}
                ${PASSTHROUGH_VARIABLES}
     INSTALL_COMMAND ""

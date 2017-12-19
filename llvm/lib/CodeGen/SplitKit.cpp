@@ -1,4 +1,4 @@
-//===- SplitKit.cpp - Toolkit for splitting live ranges -------------------===//
+//===---------- SplitKit.cpp - Toolkit for splitting live ranges ----------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,46 +13,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "SplitKit.h"
-#include "LiveRangeCalc.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/LiveRangeEdit.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
-#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/SlotIndexes.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetOpcodes.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
-#include "llvm/IR/DebugLoc.h"
-#include "llvm/MC/LaneBitmask.h"
-#include "llvm/Support/Allocator.h"
-#include "llvm/Support/BlockFrequency.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
-#include <cassert>
-#include <iterator>
-#include <limits>
-#include <tuple>
-#include <utility>
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -151,7 +125,8 @@ InsertPointAnalysis::getLastInsertPointIter(const LiveInterval &CurLI,
 SplitAnalysis::SplitAnalysis(const VirtRegMap &vrm, const LiveIntervals &lis,
                              const MachineLoopInfo &mli)
     : MF(vrm.getMachineFunction()), VRM(vrm), LIS(lis), Loops(mli),
-      TII(*MF.getSubtarget().getInstrInfo()), IPA(lis, MF.getNumBlockIDs()) {}
+      TII(*MF.getSubtarget().getInstrInfo()), CurLI(nullptr),
+      IPA(lis, MF.getNumBlockIDs()) {}
 
 void SplitAnalysis::clear() {
   UseSlots.clear();
@@ -225,7 +200,7 @@ bool SplitAnalysis::calcLiveBlockInfo() {
   // Loop over basic blocks where CurLI is live.
   MachineFunction::iterator MFI =
       LIS.getMBBFromIndex(LVI->start)->getIterator();
-  while (true) {
+  for (;;) {
     BlockInfo BI;
     BI.MBB = &*MFI;
     SlotIndex Start, Stop;
@@ -326,7 +301,7 @@ unsigned SplitAnalysis::countLiveBlocks(const LiveInterval *cli) const {
   MachineFunction::const_iterator MFI =
       LIS.getMBBFromIndex(LVI->start)->getIterator();
   SlotIndex Stop = LIS.getMBBEndIdx(&*MFI);
-  while (true) {
+  for (;;) {
     ++Count;
     LVI = li->advanceTo(LVI, Stop);
     if (LVI == LVE)
@@ -358,6 +333,7 @@ void SplitAnalysis::analyze(const LiveInterval *li) {
   analyzeUses();
 }
 
+
 //===----------------------------------------------------------------------===//
 //                               Split Editor
 //===----------------------------------------------------------------------===//
@@ -371,7 +347,8 @@ SplitEditor::SplitEditor(SplitAnalysis &sa, AliasAnalysis &aa,
       MRI(vrm.getMachineFunction().getRegInfo()), MDT(mdt),
       TII(*vrm.getMachineFunction().getSubtarget().getInstrInfo()),
       TRI(*vrm.getMachineFunction().getSubtarget().getRegisterInfo()),
-      MBFI(mbfi), RegAssign(Allocator) {}
+      MBFI(mbfi), Edit(nullptr), OpenIdx(0), SpillMode(SM_Partition),
+      RegAssign(Allocator) {}
 
 void SplitEditor::reset(LiveRangeEdit &LRE, ComplementSpillMode SM) {
   Edit = &LRE;
@@ -575,7 +552,7 @@ SlotIndex SplitEditor::buildCopy(unsigned FromReg, unsigned ToReg,
     if ((SubRegMask & ~LaneMask).any())
       continue;
 
-    unsigned PopCount = SubRegMask.getNumLanes();
+    unsigned PopCount = countPopulation(SubRegMask.getAsInteger());
     PossibleIndexes.push_back(Idx);
     if (PopCount > BestCover) {
       BestCover = PopCount;
@@ -595,7 +572,7 @@ SlotIndex SplitEditor::buildCopy(unsigned FromReg, unsigned ToReg,
   LaneBitmask LanesLeft = LaneMask & ~(TRI.getSubRegIndexLaneMask(BestIdx));
   while (LanesLeft.any()) {
     unsigned BestIdx = 0;
-    int BestCover = std::numeric_limits<int>::min();
+    int BestCover = INT_MIN;
     for (unsigned Idx : PossibleIndexes) {
       LaneBitmask SubRegMask = TRI.getSubRegIndexLaneMask(Idx);
       // Early exit if we found a perfect match.
@@ -606,8 +583,8 @@ SlotIndex SplitEditor::buildCopy(unsigned FromReg, unsigned ToReg,
 
       // Try to cover as much of the remaining lanes as possible but
       // as few of the already covered lanes as possible.
-      int Cover = (SubRegMask & LanesLeft).getNumLanes()
-                - (SubRegMask & ~LanesLeft).getNumLanes();
+      int Cover = countPopulation((SubRegMask & LanesLeft).getAsInteger())
+                - countPopulation((SubRegMask & ~LanesLeft).getAsInteger());
       if (Cover > BestCover) {
         BestCover = Cover;
         BestIdx = Idx;
@@ -898,9 +875,9 @@ SplitEditor::findShallowDominator(MachineBasicBlock *MBB,
 
   // Best candidate so far.
   MachineBasicBlock *BestMBB = MBB;
-  unsigned BestDepth = std::numeric_limits<unsigned>::max();
+  unsigned BestDepth = UINT_MAX;
 
-  while (true) {
+  for (;;) {
     const MachineLoop *Loop = Loops.getLoopFor(MBB);
 
     // MBB isn't in a loop, it doesn't get any better.  All dominators have a
@@ -1001,7 +978,7 @@ void SplitEditor::hoistCopies() {
 
   // Track the nearest common dominator for all back-copies for each ParentVNI,
   // indexed by ParentVNI->id.
-  using DomPair = std::pair<MachineBasicBlock *, SlotIndex>;
+  typedef std::pair<MachineBasicBlock*, SlotIndex> DomPair;
   SmallVector<DomPair, 8> NearestDom(Parent->getNumValNums());
   // The total cost of all the back-copies for each ParentVNI.
   SmallVector<BlockFrequency, 8> Costs(Parent->getNumValNums());
@@ -1110,6 +1087,7 @@ void SplitEditor::hoistCopies() {
 
   removeBackCopies(BackCopies);
 }
+
 
 /// transferValues - Transfer all possible values to the new live ranges.
 /// Values that were rematerialized are left alone, they need LRCalc.extend().
@@ -1298,7 +1276,6 @@ void SplitEditor::rewriteAssigned(bool ExtendRanges) {
   struct ExtPoint {
     ExtPoint(const MachineOperand &O, unsigned R, SlotIndex N)
       : MO(O), RegIdx(R), Next(N) {}
-
     MachineOperand MO;
     unsigned RegIdx;
     SlotIndex Next;
@@ -1509,6 +1486,7 @@ void SplitEditor::finish(SmallVectorImpl<unsigned> *LRMap) {
   assert(!LRMap || LRMap->size() == Edit->size());
 }
 
+
 //===----------------------------------------------------------------------===//
 //                            Single Block Splitting
 //===----------------------------------------------------------------------===//
@@ -1545,6 +1523,7 @@ void SplitEditor::splitSingleBlock(const SplitAnalysis::BlockInfo &BI) {
     overlapIntv(SegStop, BI.LastInstr);
   }
 }
+
 
 //===----------------------------------------------------------------------===//
 //                    Global Live Range Splitting Support
@@ -1659,6 +1638,7 @@ void SplitEditor::splitLiveThroughBlock(unsigned MBBNum,
   useIntv(Start, Idx);
   assert((!LeaveBefore || Idx <= LeaveBefore) && "Interference");
 }
+
 
 void SplitEditor::splitRegInBlock(const SplitAnalysis::BlockInfo &BI,
                                   unsigned IntvIn, SlotIndex LeaveBefore) {

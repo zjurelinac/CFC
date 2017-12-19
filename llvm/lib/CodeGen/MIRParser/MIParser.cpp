@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MIParser.h"
 #include "MILexer.h"
+#include "MIParser.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -21,8 +21,8 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/AsmParser/SlotMapping.h"
@@ -36,13 +36,9 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstrTypes.h"
@@ -67,8 +63,11 @@
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetIntrinsicInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -210,7 +209,6 @@ public:
   bool parseJumpTableIndexOperand(MachineOperand &Dest);
   bool parseExternalSymbolOperand(MachineOperand &Dest);
   bool parseMDNode(MDNode *&Node);
-  bool parseDIExpression(MDNode *&Node);
   bool parseMetadataOperand(MachineOperand &Dest);
   bool parseCFIOffset(int &Offset);
   bool parseCFIRegister(unsigned &Reg);
@@ -856,14 +854,10 @@ bool MIParser::parseStandaloneStackObject(int &FI) {
 
 bool MIParser::parseStandaloneMDNode(MDNode *&Node) {
   lex();
-  if (Token.is(MIToken::exclaim)) {
-    if (parseMDNode(Node))
-      return true;
-  } else if (Token.is(MIToken::md_diexpr)) {
-    if (parseDIExpression(Node))
-      return true;
-  } else
+  if (Token.isNot(MIToken::exclaim))
     return error("expected a metadata node");
+  if (parseMDNode(Node))
+    return true;
   if (Token.isNot(MIToken::Eof))
     return error("expected end of string after the metadata node");
   return false;
@@ -1498,7 +1492,6 @@ bool MIParser::parseSubRegisterIndexOperand(MachineOperand &Dest) {
 
 bool MIParser::parseMDNode(MDNode *&Node) {
   assert(Token.is(MIToken::exclaim));
-
   auto Loc = Token.location();
   lex();
   if (Token.isNot(MIToken::IntegerLiteral) || Token.integerValue().isSigned())
@@ -1514,56 +1507,10 @@ bool MIParser::parseMDNode(MDNode *&Node) {
   return false;
 }
 
-bool MIParser::parseDIExpression(MDNode *&Expr) {
-  assert(Token.is(MIToken::md_diexpr));
-  lex();
-
-  // FIXME: Share this parsing with the IL parser.
-  SmallVector<uint64_t, 8> Elements;
-
-  if (expectAndConsume(MIToken::lparen))
-    return true;
-
-  if (Token.isNot(MIToken::rparen)) {
-    do {
-      if (Token.is(MIToken::Identifier)) {
-        if (unsigned Op = dwarf::getOperationEncoding(Token.stringValue())) {
-          lex();
-          Elements.push_back(Op);
-          continue;
-        }
-        return error(Twine("invalid DWARF op '") + Token.stringValue() + "'");
-      }
-
-      if (Token.isNot(MIToken::IntegerLiteral) ||
-          Token.integerValue().isSigned())
-        return error("expected unsigned integer");
-
-      auto &U = Token.integerValue();
-      if (U.ugt(UINT64_MAX))
-        return error("element too large, limit is " + Twine(UINT64_MAX));
-      Elements.push_back(U.getZExtValue());
-      lex();
-
-    } while (consumeIfPresent(MIToken::comma));
-  }
-
-  if (expectAndConsume(MIToken::rparen))
-    return true;
-
-  Expr = DIExpression::get(MF.getFunction()->getContext(), Elements);
-  return false;
-}
-
 bool MIParser::parseMetadataOperand(MachineOperand &Dest) {
   MDNode *Node = nullptr;
-  if (Token.is(MIToken::exclaim)) {
-    if (parseMDNode(Node))
-      return true;
-  } else if (Token.is(MIToken::md_diexpr)) {
-    if (parseDIExpression(Node))
-      return true;
-  }
+  if (parseMDNode(Node))
+    return true;
   Dest = MachineOperand::CreateMetadata(Node);
   return false;
 }
@@ -1634,12 +1581,6 @@ bool MIParser::parseCFIOperand(MachineOperand &Dest) {
     CFIIndex =
         MF.addFrameInst(MCCFIInstruction::createDefCfa(nullptr, Reg, -Offset));
     break;
-  case MIToken::kw_cfi_restore:
-    if (parseCFIRegister(Reg))
-      return true;
-    CFIIndex = MF.addFrameInst(MCCFIInstruction::createRestore(nullptr, Reg));
-    break;
-
   default:
     // TODO: Parse the other CFI operands.
     llvm_unreachable("The current token should be a cfi operand");
@@ -1910,7 +1851,6 @@ bool MIParser::parseMachineOperand(MachineOperand &Dest,
     return parseExternalSymbolOperand(Dest);
   case MIToken::SubRegisterIndex:
     return parseSubRegisterIndexOperand(Dest);
-  case MIToken::md_diexpr:
   case MIToken::exclaim:
     return parseMetadataOperand(Dest);
   case MIToken::kw_cfi_same_value:
@@ -1918,7 +1858,6 @@ bool MIParser::parseMachineOperand(MachineOperand &Dest,
   case MIToken::kw_cfi_def_cfa_register:
   case MIToken::kw_cfi_def_cfa_offset:
   case MIToken::kw_cfi_def_cfa:
-  case MIToken::kw_cfi_restore:
     return parseCFIOperand(Dest);
   case MIToken::kw_blockaddress:
     return parseBlockAddressOperand(Dest);
@@ -2090,11 +2029,8 @@ bool MIParser::getHexUint(APInt &Result) {
     return true;
   StringRef V = S.substr(2);
   APInt A(V.size()*4, V, 16);
-
-  // If A is 0, then A.getActiveBits() is 0. This isn't a valid bitwidth. Make
-  // sure it isn't the case before constructing result.
-  unsigned NumBits = (A == 0) ? 32 : A.getActiveBits();
-  Result = APInt(NumBits, ArrayRef<uint64_t>(A.getRawData(), A.getNumWords()));
+  Result = APInt(A.getActiveBits(),
+                 ArrayRef<uint64_t>(A.getRawData(), A.getNumWords()));
   return false;
 }
 

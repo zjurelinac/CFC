@@ -40,7 +40,6 @@ namespace llvm {
 
 class FunctionPass;
 class ModulePass;
-class OptimizationRemarkEmitter;
 
 /// Instrumentation passes often insert conditional checks into entry blocks.
 /// Call this function before splitting the entry block to move instructions
@@ -110,8 +109,7 @@ bool isLegalToPromote(Instruction *Inst, Function *F, const char **Reason);
 // Returns the promoted direct call instruction.
 Instruction *promoteIndirectCall(Instruction *Inst, Function *F, uint64_t Count,
                                  uint64_t TotalCount,
-                                 bool AttachProfToDirectCall,
-                                 OptimizationRemarkEmitter *ORE);
+                                 bool AttachProfToDirectCall);
 
 /// Options for the frontend instrumentation based profiling pass.
 struct InstrProfOptions {
@@ -183,9 +181,7 @@ struct SanitizerCoverageOptions {
   bool TracePC = false;
   bool TracePCGuard = false;
   bool Inline8bitCounters = false;
-  bool PCTable = false;
   bool NoPrune = false;
-  bool StackDepth = false;
 
   SanitizerCoverageOptions() = default;
 };
@@ -201,6 +197,10 @@ inline ModulePass *createDataFlowSanitizerPassForJIT(
                                      getDFSanRetValTLSPtrForJIT);
 }
 #endif
+
+// BoundsChecking - This pass instruments the code to perform run-time bounds
+// checking on loads, stores, and other memory intrinsics.
+FunctionPass *createBoundsCheckingPass();
 
 /// \brief Calculate what to divide by to scale counts.
 ///

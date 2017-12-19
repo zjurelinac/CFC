@@ -27,4 +27,6 @@ def PC : FRISCReg<9, "PC">;
 
 def GPR : RegisterClass<"FRISC", [i32], 32, (add (sequence "R%u", 0, 6), SP)>;
 
+def SRClass : RegisterClass<"FRISC", [i32], 32, (add SR)>;
+def PCClass : RegisterClass<"FRISC", [i32], 32, (add PC)>;
 // TODO: Add Vector registers

@@ -1,4 +1,4 @@
-//===- MILexer.cpp - Machine instructions lexer implementation ------------===//
+//===- MILexer.cpp - Machine instructions lexer implementation ----------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,33 +12,27 @@
 //===----------------------------------------------------------------------===//
 
 #include "MILexer.h"
-#include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/None.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
-#include <algorithm>
-#include <cassert>
 #include <cctype>
-#include <string>
 
 using namespace llvm;
 
 namespace {
 
-using ErrorCallbackType =
-    function_ref<void(StringRef::iterator Loc, const Twine &)>;
+typedef function_ref<void(StringRef::iterator Loc, const Twine &)>
+    ErrorCallbackType;
 
 /// This class provides a way to iterate and get characters from the source
 /// string.
 class Cursor {
-  const char *Ptr = nullptr;
-  const char *End = nullptr;
+  const char *Ptr;
+  const char *End;
 
 public:
-  Cursor(NoneType) {}
+  Cursor(NoneType) : Ptr(nullptr), End(nullptr) {}
 
   explicit Cursor(StringRef Str) {
     Ptr = Str.data();
@@ -216,7 +210,6 @@ static MIToken::TokenKind getIdentifierKind(StringRef Identifier) {
       .Case("def_cfa_register", MIToken::kw_cfi_def_cfa_register)
       .Case("def_cfa_offset", MIToken::kw_cfi_def_cfa_offset)
       .Case("def_cfa", MIToken::kw_cfi_def_cfa)
-      .Case("restore", MIToken::kw_cfi_restore)
       .Case("blockaddress", MIToken::kw_blockaddress)
       .Case("intrinsic", MIToken::kw_intrinsic)
       .Case("target-index", MIToken::kw_target_index)
@@ -497,7 +490,6 @@ static MIToken::TokenKind getMetadataKeywordKind(StringRef Identifier) {
       .Case("!alias.scope", MIToken::md_alias_scope)
       .Case("!noalias", MIToken::md_noalias)
       .Case("!range", MIToken::md_range)
-      .Case("!DIExpression", MIToken::md_diexpr)
       .Default(MIToken::Error);
 }
 

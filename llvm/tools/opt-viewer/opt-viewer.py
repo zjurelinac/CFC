@@ -10,7 +10,6 @@ from multiprocessing import cpu_count
 import os.path
 import re
 import shutil
-import sys
 
 from pygments import highlight
 from pygments.lexers.c_cpp import CppLexer
@@ -60,14 +59,7 @@ class SourceFileRenderer:
 
     def render_source_lines(self, stream, line_remarks):
         file_text = stream.read()
-        html_highlighted = highlight(
-            file_text,
-            self.cpp_lexer,
-            self.html_formatter)
-
-        # On Python 3, pygments.highlight() returns a bytes object, not a str.
-        if sys.version_info >= (3, 0):
-          html_highlighted = html_highlighted.decode('utf-8')
+        html_highlighted = highlight(file_text, self.cpp_lexer, self.html_formatter)
 
         # Take off the header and footer, these must be
         #   reapplied line-wise, within the page structure
@@ -90,8 +82,7 @@ class SourceFileRenderer:
         inlining_context = r.DemangledFunctionName
         dl = context.caller_loc.get(r.Function)
         if dl:
-            dl_dict = dict(list(dl))
-            link = optrecord.make_link(dl_dict['File'], dl_dict['Line'] - 2)
+            link = optrecord.make_link(dl['File'], dl['Line'] - 2)
             inlining_context = "<a href={link}>{r.DemangledFunctionName}</a>".format(**locals())
 
         # Column is the number of characters *including* tabs, keep those and
@@ -119,30 +110,25 @@ class SourceFileRenderer:
 </head>
 <body>
 <div class="centered">
-<table class="source">
-<thead>
+<table>
 <tr>
-<th style="width: 2%">Line</td>
-<th style="width: 3%">Hotness</td>
-<th style="width: 10%">Optimization</td>
-<th style="width: 70%">Source</td>
-<th style="width: 15%">Inline Context</td>
-</tr>
-</thead>
-<tbody>''', file=self.stream)
+<td>Line</td>
+<td>Hotness</td>
+<td>Optimization</td>
+<td>Source</td>
+<td>Inline Context</td>
+</tr>''', file=self.stream)
         self.render_source_lines(self.source_stream, line_remarks)
 
         print('''
-</tbody>
 </table>
 </body>
 </html>''', file=self.stream)
 
 
 class IndexRenderer:
-    def __init__(self, output_dir, should_display_hotness):
+    def __init__(self, output_dir):
         self.stream = open(os.path.join(output_dir, 'index.html'), 'w')
-        self.should_display_hotness = should_display_hotness
 
     def render_entry(self, r, odd):
         escaped_name = cgi.escape(r.DemangledFunctionName)
@@ -169,12 +155,7 @@ class IndexRenderer:
 <td>Function</td>
 <td>Pass</td>
 </tr>''', file=self.stream)
-
-        max_entries = None
-        if should_display_hotness:
-            max_entries = args.max_hottest_remarks_on_index
-
-        for i, remark in enumerate(all_remarks[:max_entries]):
+        for i, remark in enumerate(all_remarks):
             self.render_entry(remark, i % 2)
         print('''
 </table>
@@ -195,11 +176,10 @@ def map_remarks(all_remarks):
     for remark in optrecord.itervalues(all_remarks):
         if isinstance(remark, optrecord.Passed) and remark.Pass == "inline" and remark.Name == "Inlined":
             for arg in remark.Args:
-                arg_dict = dict(list(arg))
-                caller = arg_dict.get('Caller')
+                caller = arg.get('Caller')
                 if caller:
                     try:
-                        context.caller_loc[caller] = arg_dict['DebugLoc']
+                        context.caller_loc[caller] = arg['DebugLoc']
                     except KeyError:
                         pass
 
@@ -231,7 +211,7 @@ def generate_report(all_remarks,
         sorted_remarks = sorted(optrecord.itervalues(all_remarks), key=lambda r: (r.Hotness, r.File, r.Line, r.Column, r.PassWithDiffPrefix, r.yaml_tag, r.Function), reverse=True)
     else:
         sorted_remarks = sorted(optrecord.itervalues(all_remarks), key=lambda r: (r.File, r.Line, r.Column, r.PassWithDiffPrefix, r.yaml_tag, r.Function))
-    IndexRenderer(args.output_dir, should_display_hotness).render(sorted_remarks)
+    IndexRenderer(args.output_dir).render(sorted_remarks)
 
     shutil.copy(os.path.join(os.path.dirname(os.path.realpath(__file__)),
             "style.css"), output_dir)
@@ -269,16 +249,11 @@ if __name__ == '__main__':
         default=False,
         help='Do not display any indicator of how many YAML files were read '
              'or rendered into HTML.')
-    parser.add_argument(
-        '--max-hottest-remarks-on-index',
-        default=1000,
-        type=int,
-        help='Maximum number of the hottest remarks to appear on the index page')
     args = parser.parse_args()
 
     print_progress = not args.no_progress_indicator
 
-    files = optrecord.find_opt_files(*args.yaml_dirs_or_files)
+    files = optrecord.find_opt_files(args.yaml_dirs_or_files)
     if not files:
         parser.error("No *.opt.yaml files found")
         sys.exit(1)

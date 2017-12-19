@@ -31,8 +31,6 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Constants.h"
@@ -43,8 +41,10 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <cassert>
 #include <utility>
 
@@ -92,14 +92,9 @@ ARMBaseRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     }
   }
 
-  if (STI.getTargetLowering()->supportSwiftError() &&
-      F->getAttributes().hasAttrSomewhere(Attribute::SwiftError)) {
-    if (STI.isTargetDarwin())
-      return CSR_iOS_SwiftError_SaveList;
-
-    return UseSplitPush ? CSR_AAPCS_SplitPush_SwiftError_SaveList :
-      CSR_AAPCS_SwiftError_SaveList;
-  }
+  if (STI.isTargetDarwin() && STI.getTargetLowering()->supportSwiftError() &&
+      F->getAttributes().hasAttrSomewhere(Attribute::SwiftError))
+    return CSR_iOS_SwiftError_SaveList;
 
   if (STI.isTargetDarwin() && F->getCallingConv() == CallingConv::CXX_FAST_TLS)
     return MF->getInfo<ARMFunctionInfo>()->isSplitCSR()
@@ -125,10 +120,9 @@ ARMBaseRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
     // This is academic because all GHC calls are (supposed to be) tail calls
     return CSR_NoRegs_RegMask;
 
-  if (STI.getTargetLowering()->supportSwiftError() &&
+  if (STI.isTargetDarwin() && STI.getTargetLowering()->supportSwiftError() &&
       MF.getFunction()->getAttributes().hasAttrSomewhere(Attribute::SwiftError))
-    return STI.isTargetDarwin() ? CSR_iOS_SwiftError_RegMask
-                                : CSR_AAPCS_SwiftError_RegMask;
+    return CSR_iOS_SwiftError_RegMask;
 
   if (STI.isTargetDarwin() && CC == CallingConv::CXX_FAST_TLS)
     return CSR_iOS_CXX_TLS_RegMask;
@@ -280,7 +274,7 @@ static unsigned getPairedGPR(unsigned Reg, bool Odd, const MCRegisterInfo *RI) {
 }
 
 // Resolve the RegPairEven / RegPairOdd register allocator hints.
-bool
+void
 ARMBaseRegisterInfo::getRegAllocationHints(unsigned VirtReg,
                                            ArrayRef<MCPhysReg> Order,
                                            SmallVectorImpl<MCPhysReg> &Hints,
@@ -300,7 +294,7 @@ ARMBaseRegisterInfo::getRegAllocationHints(unsigned VirtReg,
     break;
   default:
     TargetRegisterInfo::getRegAllocationHints(VirtReg, Order, Hints, MF, VRM);
-    return false;
+    return;
   }
 
   // This register should preferably be even (Odd == 0) or odd (Odd == 1).
@@ -308,7 +302,7 @@ ARMBaseRegisterInfo::getRegAllocationHints(unsigned VirtReg,
   // the paired register as the first hint.
   unsigned Paired = Hint.second;
   if (Paired == 0)
-    return false;
+    return;
 
   unsigned PairedPhys = 0;
   if (TargetRegisterInfo::isPhysicalRegister(Paired)) {
@@ -331,7 +325,6 @@ ARMBaseRegisterInfo::getRegAllocationHints(unsigned VirtReg,
       continue;
     Hints.push_back(Reg);
   }
-  return false;
 }
 
 void
@@ -392,11 +385,15 @@ bool ARMBaseRegisterInfo::hasBasePointer(const MachineFunction &MF) const {
 
 bool ARMBaseRegisterInfo::canRealignStack(const MachineFunction &MF) const {
   const MachineRegisterInfo *MRI = &MF.getRegInfo();
+  const ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
   const ARMFrameLowering *TFI = getFrameLowering(MF);
   // We can't realign the stack if:
   // 1. Dynamic stack realignment is explicitly disabled,
-  // 2. There are VLAs in the function and the base pointer is disabled.
+  // 2. This is a Thumb1 function (it's not useful, so we don't bother), or
+  // 3. There are VLAs in the function and the base pointer is disabled.
   if (!TargetRegisterInfo::canRealignStack(MF))
+    return false;
+  if (AFI->isThumb1OnlyFunction())
     return false;
   // Stack realignment requires a frame pointer.  If we already started
   // register allocation with frame pointer elimination, it is too late now.
@@ -804,8 +801,7 @@ bool ARMBaseRegisterInfo::shouldCoalesce(MachineInstr *MI,
                                   unsigned SubReg,
                                   const TargetRegisterClass *DstRC,
                                   unsigned DstSubReg,
-                                  const TargetRegisterClass *NewRC,
-                                  LiveIntervals &LIS) const {
+                                  const TargetRegisterClass *NewRC) const {
   auto MBB = MI->getParent();
   auto MF = MBB->getParent();
   const MachineRegisterInfo &MRI = MF->getRegInfo();

@@ -60,7 +60,15 @@ void MachineOptimizationRemarkEmitter::emit(
     return;
   }
 
-  Ctx.diagnose(OptDiag);
+  yaml::Output *Out = Ctx.getDiagnosticsOutputFile();
+  if (Out) {
+    auto *P = &const_cast<DiagnosticInfoOptimizationBase &>(OptDiagCommon);
+    *Out << P;
+  }
+  // FIXME: now that IsVerbose is part of DI, filtering for this will be moved
+  // from here to clang.
+  if (!OptDiag.isVerbose() || shouldEmitVerbose())
+    Ctx.diagnose(OptDiag);
 }
 
 MachineOptimizationRemarkEmitterPass::MachineOptimizationRemarkEmitterPass()

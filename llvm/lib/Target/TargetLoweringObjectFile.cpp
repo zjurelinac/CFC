@@ -12,10 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/TargetLoweringObjectFile.h"
+#include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/BinaryFormat/Dwarf.h"
-#include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -29,8 +27,10 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -46,8 +46,8 @@ void TargetLoweringObjectFile::Initialize(MCContext &ctx,
   // `Initialize` can be called more than once.
   delete Mang;
   Mang = new Mangler();
-  InitMCObjectFileInfo(TM.getTargetTriple(), TM.isPositionIndependent(), *Ctx,
-                       TM.getCodeModel() == CodeModel::Large);
+  InitMCObjectFileInfo(TM.getTargetTriple(), TM.isPositionIndependent(),
+                       TM.getCodeModel(), *Ctx);
 }
 
 TargetLoweringObjectFile::~TargetLoweringObjectFile() {

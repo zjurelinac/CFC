@@ -263,7 +263,6 @@ namespace ISD {
     /// They are used to limit optimizations while the DAG is being
     /// optimized.
     STRICT_FADD, STRICT_FSUB, STRICT_FMUL, STRICT_FDIV, STRICT_FREM,
-    STRICT_FMA,
 
     /// Constrained versions of libm-equivalent floating point intrinsics.
     /// These will be lowered to the equivalent non-constrained pseudo-op
@@ -637,12 +636,6 @@ namespace ISD {
     /// locations needed for debug and exception handling tables.  These nodes
     /// take a chain as input and return a chain.
     EH_LABEL,
-
-    /// ANNOTATION_LABEL - Represents a mid basic block label used by
-    /// annotations. This should remain within the basic block and be ordered
-    /// with respect to other call instructions, but loads and stores may float
-    /// past it.
-    ANNOTATION_LABEL,
 
     /// CATCHPAD - Represents a catchpad instruction.
     CATCHPAD,

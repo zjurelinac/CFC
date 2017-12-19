@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/SelectionDAGISel.h"
 #include "ScheduleDAGSDNodes.h"
 #include "SelectionDAGBuilder.h"
 #include "llvm/ADT/APInt.h"
@@ -27,7 +26,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/Analysis/CFG.h"
-#include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Analysis/OptimizationDiagnosticInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
@@ -46,12 +45,9 @@
 #include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/StackProtector.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -84,9 +80,13 @@
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetIntrinsicInfo.h"
+#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <algorithm>
 #include <cassert>
@@ -414,7 +414,7 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
 
   SplitCriticalSideEffectEdges(const_cast<Function &>(Fn), DT, LI);
 
-  CurDAG->init(*MF, *ORE, this);
+  CurDAG->init(*MF, *ORE);
   FuncInfo->set(Fn, *MF, CurDAG);
 
   // Now get the optional analyzes if we want to.
@@ -494,9 +494,10 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
 
   DenseMap<unsigned, unsigned> LiveInMap;
   if (!FuncInfo->ArgDbgValues.empty())
-    for (std::pair<unsigned, unsigned> LI : RegInfo->liveins())
-      if (LI.second)
-        LiveInMap.insert(LI);
+    for (MachineRegisterInfo::livein_iterator LI = RegInfo->livein_begin(),
+           E = RegInfo->livein_end(); LI != E; ++LI)
+      if (LI->second)
+        LiveInMap.insert(std::make_pair(LI->first, LI->second));
 
   // Insert DBG_VALUE instructions for function arguments to the entry block.
   for (unsigned i = 0, e = FuncInfo->ArgDbgValues.size(); i != e; ++i) {
@@ -528,14 +529,12 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
       const MDNode *Expr = MI->getDebugExpression();
       DebugLoc DL = MI->getDebugLoc();
       bool IsIndirect = MI->isIndirectDebugValue();
-      if (IsIndirect)
-        assert(MI->getOperand(1).getImm() == 0 &&
-               "DBG_VALUE with nonzero offset");
+      unsigned Offset = IsIndirect ? MI->getOperand(1).getImm() : 0;
       assert(cast<DILocalVariable>(Variable)->isValidLocationForIntrinsic(DL) &&
              "Expected inlined-at fields to agree");
       // Def is never a terminator here, so it is ok to increment InsertPos.
       BuildMI(*EntryMBB, ++InsertPos, DL, TII->get(TargetOpcode::DBG_VALUE),
-              IsIndirect, LDI->second, Variable, Expr);
+              IsIndirect, LDI->second, Offset, Variable, Expr);
 
       // If this vreg is directly copied into an exported register then
       // that COPY instructions also need DBG_VALUE, if it is the only
@@ -557,7 +556,7 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
         // declared, rather than whatever is attached to CopyUseMI.
         MachineInstr *NewMI =
             BuildMI(*MF, DL, TII->get(TargetOpcode::DBG_VALUE), IsIndirect,
-                    CopyUseMI->getOperand(0).getReg(), Variable, Expr);
+                    CopyUseMI->getOperand(0).getReg(), Offset, Variable, Expr);
         MachineBasicBlock::iterator Pos = CopyUseMI;
         EntryMBB->insertAfter(Pos, NewMI);
       }
@@ -645,9 +644,6 @@ static void reportFastISelFailure(MachineFunction &MF,
 void SelectionDAGISel::SelectBasicBlock(BasicBlock::const_iterator Begin,
                                         BasicBlock::const_iterator End,
                                         bool &HadTailCall) {
-  // Allow creating illegal types during DAG building for the basic block.
-  CurDAG->NewNodesMustHaveLegalTypes = false;
-
   // Lower the instructions. If a call is emitted as a tail call, cease emitting
   // nodes for this block.
   for (BasicBlock::const_iterator I = Begin; I != End && !SDB->HasTailCall; ++I) {
@@ -1142,7 +1138,7 @@ static void processDbgDeclares(FunctionLoweringInfo *FuncInfo) {
 
       // Look through casts and constant offset GEPs. These mostly come from
       // inalloca.
-      APInt Offset(DL.getTypeSizeInBits(Address->getType()), 0);
+      APInt Offset(DL.getPointerSizeInBits(0), 0);
       Address = Address->stripAndAccumulateInBoundsConstantOffsets(DL, Offset);
 
       // Check if the variable is a static alloca or a byval or inalloca
@@ -1181,7 +1177,12 @@ static void propagateSwiftErrorVRegs(FunctionLoweringInfo *FuncInfo) {
 
   // For each machine basic block in reverse post order.
   ReversePostOrderTraversal<MachineFunction *> RPOT(FuncInfo->MF);
-  for (MachineBasicBlock *MBB : RPOT) {
+  for (ReversePostOrderTraversal<MachineFunction *>::rpo_iterator
+           It = RPOT.begin(),
+           E = RPOT.end();
+       It != E; ++It) {
+    MachineBasicBlock *MBB = *It;
+
     // For each swifterror value in the function.
     for(const auto *SwiftErrorVal : FuncInfo->SwiftErrorVals) {
       auto Key = std::make_pair(MBB, SwiftErrorVal);
@@ -1252,8 +1253,6 @@ static void propagateSwiftErrorVRegs(FunctionLoweringInfo *FuncInfo) {
       // If we don't need a phi create a copy to the upward exposed vreg.
       if (!needPHI) {
         assert(UpwardsUse);
-        assert(!VRegs.empty() &&
-               "No predecessors?  Is the Calling Convention correct?");
         unsigned DestReg = UUseVReg;
         BuildMI(*MBB, MBB->getFirstNonPHI(), DLoc, TII->get(TargetOpcode::COPY),
                 DestReg)
@@ -1283,10 +1282,10 @@ static void propagateSwiftErrorVRegs(FunctionLoweringInfo *FuncInfo) {
   }
 }
 
-static void preassignSwiftErrorRegs(const TargetLowering *TLI,
-                                    FunctionLoweringInfo *FuncInfo,
-                                    BasicBlock::const_iterator Begin,
-                                    BasicBlock::const_iterator End) {
+void preassignSwiftErrorRegs(const TargetLowering *TLI,
+                             FunctionLoweringInfo *FuncInfo,
+                             BasicBlock::const_iterator Begin,
+                             BasicBlock::const_iterator End) {
   if (!TLI->supportSwiftError() || FuncInfo->SwiftErrorVals.empty())
     return;
 
@@ -2907,7 +2906,6 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
   case ISD::CopyFromReg:
   case ISD::CopyToReg:
   case ISD::EH_LABEL:
-  case ISD::ANNOTATION_LABEL:
   case ISD::LIFETIME_START:
   case ISD::LIFETIME_END:
     NodeToMatch->setNodeId(-1); // Mark selected.
@@ -3550,7 +3548,6 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
                "NodeToMatch was removed partway through selection");
         SelectionDAG::DAGNodeDeletedListener NDL(*CurDAG, [&](SDNode *N,
                                                               SDNode *E) {
-          CurDAG->salvageDebugInfo(*N);
           auto &Chain = ChainNodesMatched;
           assert((!E || !is_contained(Chain, N)) &&
                  "Chain node replaced during MorphNode");

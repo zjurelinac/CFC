@@ -27,6 +27,7 @@ entry:
 ; CHECK-NEXT:   - Type:            CUSTOM
 ; CHECK-NEXT:     Name:            linking
 ; CHECK-NEXT:     DataSize:        0
+; CHECK-NEXT:     DataAlignment:   0
 ; CHECK-NEXT:     SymbolInfo:      
 ; CHECK-NEXT:       - Name:            weak_external_data
 ; CHECK-NEXT:         Flags:           1

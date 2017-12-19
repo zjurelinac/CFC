@@ -13,7 +13,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/DebugInfo/CodeView/CodeViewError.h"
-#include "llvm/DebugInfo/CodeView/RecordName.h"
+#include "llvm/DebugInfo/CodeView/TypeName.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/Support/BinaryStreamReader.h"
 #include "llvm/Support/Endian.h"
@@ -83,20 +83,9 @@ uint32_t LazyRandomTypeCollection::getOffsetOfType(TypeIndex Index) {
 }
 
 CVType LazyRandomTypeCollection::getType(TypeIndex Index) {
-  auto EC = ensureTypeExists(Index);
-  error(std::move(EC));
+  error(ensureTypeExists(Index));
   assert(contains(Index));
 
-  return Records[Index.toArrayIndex()].Type;
-}
-
-Optional<CVType> LazyRandomTypeCollection::tryGetType(TypeIndex Index) {
-  if (auto EC = ensureTypeExists(Index)) {
-    consumeError(std::move(EC));
-    return None;
-  }
-
-  assert(contains(Index));
   return Records[Index.toArrayIndex()].Type;
 }
 
@@ -123,9 +112,6 @@ StringRef LazyRandomTypeCollection::getTypeName(TypeIndex Index) {
 }
 
 bool LazyRandomTypeCollection::contains(TypeIndex Index) {
-  if (Index.isSimple() || Index.isNoneType())
-    return false;
-
   if (Records.size() <= Index.toArrayIndex())
     return false;
   if (!Records[Index.toArrayIndex()].Type.valid())

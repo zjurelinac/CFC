@@ -25,6 +25,7 @@
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/ErrorOr.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -752,7 +753,7 @@ private:
   const debug_directory *DebugDirectoryBegin;
   const debug_directory *DebugDirectoryEnd;
   // Either coff_load_configuration32 or coff_load_configuration64.
-  const void *LoadConfig = nullptr;
+  const void *LoadConfig;
 
   std::error_code getString(uint32_t offset, StringRef &Res) const;
 
@@ -953,28 +954,28 @@ public:
     Res = reinterpret_cast<coff_symbol_type *>(getSymbolTable()) + Index;
     return std::error_code();
   }
-  Expected<COFFSymbolRef> getSymbol(uint32_t index) const {
+  ErrorOr<COFFSymbolRef> getSymbol(uint32_t index) const {
     if (SymbolTable16) {
       const coff_symbol16 *Symb = nullptr;
       if (std::error_code EC = getSymbol(index, Symb))
-        return errorCodeToError(EC);
+        return EC;
       return COFFSymbolRef(Symb);
     }
     if (SymbolTable32) {
       const coff_symbol32 *Symb = nullptr;
       if (std::error_code EC = getSymbol(index, Symb))
-        return errorCodeToError(EC);
+        return EC;
       return COFFSymbolRef(Symb);
     }
-    return errorCodeToError(object_error::parse_failed);
+    return object_error::parse_failed;
   }
 
   template <typename T>
   std::error_code getAuxSymbol(uint32_t index, const T *&Res) const {
-    Expected<COFFSymbolRef> S = getSymbol(index);
-    if (Error E = S.takeError())
-      return errorToErrorCode(std::move(E));
-    Res = reinterpret_cast<const T *>(S->getRawPtr());
+    ErrorOr<COFFSymbolRef> s = getSymbol(index);
+    if (std::error_code EC = s.getError())
+      return EC;
+    Res = reinterpret_cast<const T *>(s->getRawPtr());
     return std::error_code();
   }
 
@@ -1144,7 +1145,7 @@ public:
   BaseRelocRef() = default;
   BaseRelocRef(const coff_base_reloc_block_header *Header,
                const COFFObjectFile *Owner)
-      : Header(Header), Index(0) {}
+      : Header(Header), Index(0), OwningObject(Owner) {}
 
   bool operator==(const BaseRelocRef &Other) const;
   void moveNext();
@@ -1155,6 +1156,7 @@ public:
 private:
   const coff_base_reloc_block_header *Header;
   uint32_t Index;
+  const COFFObjectFile *OwningObject = nullptr;
 };
 
 class ResourceSectionRef {
@@ -1162,17 +1164,16 @@ public:
   ResourceSectionRef() = default;
   explicit ResourceSectionRef(StringRef Ref) : BBS(Ref, support::little) {}
 
-  Expected<ArrayRef<UTF16>>
-  getEntryNameString(const coff_resource_dir_entry &Entry);
-  Expected<const coff_resource_dir_table &>
+  ErrorOr<ArrayRef<UTF16>> getEntryNameString(const coff_resource_dir_entry &Entry);
+  ErrorOr<const coff_resource_dir_table &>
   getEntrySubDir(const coff_resource_dir_entry &Entry);
-  Expected<const coff_resource_dir_table &> getBaseTable();
+  ErrorOr<const coff_resource_dir_table &> getBaseTable();
 
 private:
   BinaryByteStream BBS;
 
-  Expected<const coff_resource_dir_table &> getTableAtOffset(uint32_t Offset);
-  Expected<ArrayRef<UTF16>> getDirStringAtOffset(uint32_t Offset);
+  ErrorOr<const coff_resource_dir_table &> getTableAtOffset(uint32_t Offset);
+  ErrorOr<ArrayRef<UTF16>> getDirStringAtOffset(uint32_t Offset);
 };
 
 // Corresponds to `_FPO_DATA` structure in the PE/COFF spec.

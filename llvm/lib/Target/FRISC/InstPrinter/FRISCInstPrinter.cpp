@@ -81,16 +81,16 @@ void FRISCInstPrinter::printMemSrcOperand(const MCInst *MI, unsigned OpNo,
   O << ")";
 }
 
-/*void FRISCInstPrinter::printPCRelImmOperand(const MCInst *MI, unsigned OpNo,
+void FRISCInstPrinter::printPCRelImm(const MCInst *MI, unsigned OpNo,
                                              raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNo);
   if (Op.isImm())
-    O << Op.getImm();
+    O << '(' << Op.getImm() << ')';
   else {
     assert(Op.isExpr() && "unknown pcrel immediate operand");
     Op.getExpr()->print(O, &MAI);
   }
-}*/
+}
 
 void FRISCInstPrinter::printCCOperand(const MCInst *MI, unsigned OpNo,
                                        raw_ostream &O) {

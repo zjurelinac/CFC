@@ -10,9 +10,9 @@ registers:
   - { id: 0, class: vgpr_32 }
   - { id: 1, class: vgpr_32 }
   - { id: 2, class: vgpr_32 }
-  - { id: 3, class: sreg_64_xexec }
+  - { id: 3, class: sreg_64 }
   - { id: 4, class: vgpr_32 }
-  - { id: 5, class: sreg_64_xexec }
+  - { id: 5, class: sreg_64 }
 body:             |
   bb.0:
 
@@ -21,6 +21,7 @@ body:             |
     %2 = IMPLICIT_DEF
     %3 = V_CMP_GT_U32_e64 %0, %1, implicit %exec
     %4, %5 = V_SUBBREV_U32_e64 0, %0, %3, implicit %exec
+    S_ENDPGM
 
 ...
 
@@ -34,9 +35,9 @@ registers:
   - { id: 0, class: vgpr_32 }
   - { id: 1, class: vgpr_32 }
   - { id: 2, class: vgpr_32 }
-  - { id: 3, class: sreg_64_xexec }
+  - { id: 3, class: sreg_64 }
   - { id: 4, class: vgpr_32 }
-  - { id: 5, class: sreg_64_xexec }
+  - { id: 5, class: sreg_64 }
 body:             |
   bb.0:
 
@@ -45,6 +46,7 @@ body:             |
     %2 = IMPLICIT_DEF
     %3 = V_CMP_GT_U32_e64 %0, %1, implicit %exec
     %4, %5 = V_SUBB_U32_e64 %0, 0, %3, implicit %exec
+    S_ENDPGM
 
 ...
 
@@ -58,9 +60,9 @@ registers:
   - { id: 0, class: vgpr_32 }
   - { id: 1, class: vgpr_32 }
   - { id: 2, class: vgpr_32 }
-  - { id: 3, class: sreg_64_xexec }
+  - { id: 3, class: sreg_64 }
   - { id: 4, class: vgpr_32 }
-  - { id: 5, class: sreg_64_xexec }
+  - { id: 5, class: sreg_64 }
 body:             |
   bb.0:
 
@@ -69,6 +71,7 @@ body:             |
     %2 = IMPLICIT_DEF
     %3 = V_CMP_GT_U32_e64 %0, %1, implicit %exec
     %4, %5 = V_ADDC_U32_e64 0, %0, %3, implicit %exec
+    S_ENDPGM
 
 ...
 
@@ -82,9 +85,9 @@ registers:
   - { id: 0, class: vgpr_32 }
   - { id: 1, class: vgpr_32 }
   - { id: 2, class: vgpr_32 }
-  - { id: 3, class: sreg_64_xexec }
+  - { id: 3, class: sreg_64 }
   - { id: 4, class: vgpr_32 }
-  - { id: 5, class: sreg_64_xexec }
+  - { id: 5, class: sreg_64 }
 body:             |
   bb.0:
 
@@ -93,5 +96,6 @@ body:             |
     %2 = IMPLICIT_DEF
     %3 = V_CMP_GT_U32_e64 %0, %1, implicit %exec
     %4, %5 = V_ADDC_U32_e64 %0, 0, %3, implicit %exec
+    S_ENDPGM
 
 ...

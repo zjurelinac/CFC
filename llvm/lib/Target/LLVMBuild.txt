@@ -20,13 +20,13 @@
 [common]
 subdirectories =
  ARM
- AArch64
  CJG
+ FRISC
+ LEG
+ Mips
  RISCV
  Sparc
- WebAssembly
  X86
- FRISC
 
 ; This is a special group whose required libraries are extended (by llvm-build)
 ; with the best execution engine (the native JIT, if available, or the

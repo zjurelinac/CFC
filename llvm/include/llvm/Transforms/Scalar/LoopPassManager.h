@@ -164,11 +164,10 @@ public:
   /// If this is called for the current loop, in addition to clearing any
   /// state, this routine will mark that the current loop should be skipped by
   /// the rest of the pass management infrastructure.
-  void markLoopAsDeleted(Loop &L, llvm::StringRef Name) {
-    LAM.clear(L, Name);
-    assert((&L == CurrentL || CurrentL->contains(&L)) &&
-           "Cannot delete a loop outside of the "
-           "subloop tree currently being processed.");
+  void markLoopAsDeleted(Loop &L) {
+    LAM.clear(L);
+    assert(CurrentL->contains(&L) && "Cannot delete a loop outside of the "
+                                     "subloop tree currently being processed.");
     if (&L == CurrentL)
       SkipCurrentLoop = true;
   }
@@ -215,19 +214,6 @@ public:
 
     // No need to skip the current loop or revisit it, as sibling loops
     // shouldn't impact anything.
-  }
-
-  /// Restart the current loop.
-  ///
-  /// Loop passes should call this method to indicate the current loop has been
-  /// sufficiently changed that it should be re-visited from the begining of
-  /// the loop pass pipeline rather than continuing.
-  void revisitCurrentLoop() {
-    // Tell the currently in-flight pipeline to stop running.
-    SkipCurrentLoop = true;
-
-    // And insert ourselves back into the worklist.
-    Worklist.insert(CurrentL);
   }
 
 private:

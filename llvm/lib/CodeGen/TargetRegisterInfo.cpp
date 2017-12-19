@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
@@ -19,8 +18,6 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineValueType.h"
-#include "llvm/CodeGen/TargetFrameLowering.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
@@ -30,6 +27,9 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Printable.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <cassert>
 #include <utility>
 
@@ -41,14 +41,11 @@ TargetRegisterInfo::TargetRegisterInfo(const TargetRegisterInfoDesc *ID,
                              regclass_iterator RCB, regclass_iterator RCE,
                              const char *const *SRINames,
                              const LaneBitmask *SRILaneMasks,
-                             LaneBitmask SRICoveringLanes,
-                             const RegClassInfo *const RCIs,
-                             unsigned Mode)
+                             LaneBitmask SRICoveringLanes)
   : InfoDesc(ID), SubRegIndexNames(SRINames),
     SubRegIndexLaneMasks(SRILaneMasks),
     RegClassBegin(RCB), RegClassEnd(RCE),
-    CoveringLanes(SRICoveringLanes),
-    RCInfos(RCIs), HwMode(Mode) {
+    CoveringLanes(SRICoveringLanes) {
 }
 
 TargetRegisterInfo::~TargetRegisterInfo() = default;
@@ -360,7 +357,7 @@ bool TargetRegisterInfo::shouldRewriteCopySrc(const TargetRegisterClass *DefRC,
 }
 
 // Compute target-independent register allocator hints to help eliminate copies.
-bool
+void
 TargetRegisterInfo::getRegAllocationHints(unsigned VirtReg,
                                           ArrayRef<MCPhysReg> Order,
                                           SmallVectorImpl<MCPhysReg> &Hints,
@@ -382,18 +379,17 @@ TargetRegisterInfo::getRegAllocationHints(unsigned VirtReg,
 
   // Check that Phys is a valid hint in VirtReg's register class.
   if (!isPhysicalRegister(Phys))
-    return false;
+    return;
   if (MRI.isReserved(Phys))
-    return false;
+    return;
   // Check that Phys is in the allocation order. We shouldn't heed hints
   // from VirtReg's register class if they aren't in the allocation order. The
   // target probably has a reason for removing the register.
   if (!is_contained(Order, Phys))
-    return false;
+    return;
 
   // All clear, tell the register allocator to prefer this register.
   Hints.push_back(Phys);
-  return false;
 }
 
 bool TargetRegisterInfo::canRealignStack(const MachineFunction &MF) const {

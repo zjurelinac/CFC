@@ -52,10 +52,7 @@ bool TailDuplicatePass::runOnMachineFunction(MachineFunction &MF) {
 
   auto MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
 
-  // TODO: Querying isSSA() to determine pre-/post-regalloc is fragile, better
-  // split this into two passes instead.
-  bool PreRegAlloc = MF.getRegInfo().isSSA();
-  Duplicator.initMF(MF, PreRegAlloc, MBPI, /* LayoutMode */ false);
+  Duplicator.initMF(MF, MBPI, /* LayoutMode */ false);
 
   bool MadeChange = false;
   while (Duplicator.tailDuplicateBlocks())

@@ -27,7 +27,7 @@
 #include "llvm/CodeGen/RegisterUsageInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/CodeGen/TargetFrameLowering.h"
+#include "llvm/Target/TargetFrameLowering.h"
 
 using namespace llvm;
 
@@ -128,11 +128,9 @@ bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
   if (!TargetFrameLowering::isSafeForNoCSROpt(F)) {
     const uint32_t *CallPreservedMask =
         TRI->getCallPreservedMask(MF, F->getCallingConv());
-    if (CallPreservedMask) {
-      // Set callee saved register as preserved.
-      for (unsigned i = 0; i < RegMaskSize; ++i)
-        RegMask[i] = RegMask[i] | CallPreservedMask[i];
-    }
+    // Set callee saved register as preserved.
+    for (unsigned i = 0; i < RegMaskSize; ++i)
+      RegMask[i] = RegMask[i] | CallPreservedMask[i];
   } else {
     ++NumCSROpt;
     DEBUG(dbgs() << MF.getName()

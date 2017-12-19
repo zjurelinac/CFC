@@ -1,6 +1,6 @@
-; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=tahiti -verify-machineinstrs< %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
-; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=tonga -verify-machineinstrs< %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
-; RUN: llc -amdgpu-scalarize-global-loads=false -march=r600 -mcpu=cypress -verify-machineinstrs< %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=SI -verify-machineinstrs< %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=tonga -verify-machineinstrs< %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=r600 -mcpu=cypress -verify-machineinstrs< %s
 
 declare { i32, i1 } @llvm.sadd.with.overflow.i32(i32, i32) nounwind readnone
 declare { i64, i1 } @llvm.sadd.with.overflow.i64(i64, i64) nounwind readnone
@@ -49,7 +49,7 @@ define amdgpu_kernel void @s_saddo_i64(i64 addrspace(1)* %out, i1 addrspace(1)* 
 }
 
 ; FUNC-LABEL: {{^}}v_saddo_i64:
-; SI: v_add_{{[iu]}}32
+; SI: v_add_i32
 ; SI: v_addc_u32
 define amdgpu_kernel void @v_saddo_i64(i64 addrspace(1)* %out, i1 addrspace(1)* %carryout, i64 addrspace(1)* %aptr, i64 addrspace(1)* %bptr) nounwind {
   %a = load i64, i64 addrspace(1)* %aptr, align 4

@@ -1423,9 +1423,9 @@ void COFFDumper::printSymbol(const SymbolRef &Sym) {
       const coff_aux_weak_external *Aux;
       error(getSymbolAuxData(Obj, Symbol, I, Aux));
 
-      Expected<COFFSymbolRef> Linked = Obj->getSymbol(Aux->TagIndex);
+      ErrorOr<COFFSymbolRef> Linked = Obj->getSymbol(Aux->TagIndex);
       StringRef LinkedName;
-      std::error_code EC = errorToErrorCode(Linked.takeError());
+      std::error_code EC = Linked.getError();
       if (EC || (EC = Obj->getSymbolName(*Linked, LinkedName))) {
         LinkedName = "";
         error(EC);
@@ -1481,10 +1481,10 @@ void COFFDumper::printSymbol(const SymbolRef &Sym) {
       const coff_aux_clr_token *Aux;
       error(getSymbolAuxData(Obj, Symbol, I, Aux));
 
-      Expected<COFFSymbolRef> ReferredSym =
+      ErrorOr<COFFSymbolRef> ReferredSym =
           Obj->getSymbol(Aux->SymbolTableIndex);
       StringRef ReferredName;
-      std::error_code EC = errorToErrorCode(ReferredSym.takeError());
+      std::error_code EC = ReferredSym.getError();
       if (EC || (EC = Obj->getSymbolName(*ReferredSym, ReferredName))) {
         ReferredName = "";
         error(EC);
@@ -1627,7 +1627,7 @@ void COFFDumper::printCOFFDirectives() {
   }
 }
 
-static std::string getBaseRelocTypeName(uint8_t Type) {
+static StringRef getBaseRelocTypeName(uint8_t Type) {
   switch (Type) {
   case COFF::IMAGE_REL_BASED_ABSOLUTE: return "ABSOLUTE";
   case COFF::IMAGE_REL_BASED_HIGH: return "HIGH";
@@ -1636,7 +1636,11 @@ static std::string getBaseRelocTypeName(uint8_t Type) {
   case COFF::IMAGE_REL_BASED_HIGHADJ: return "HIGHADJ";
   case COFF::IMAGE_REL_BASED_ARM_MOV32T: return "ARM_MOV32(T)";
   case COFF::IMAGE_REL_BASED_DIR64: return "DIR64";
-  default: return "unknown (" + llvm::utostr(Type) + ")";
+  default: {
+    static std::string Result;
+    Result = "unknown (" + llvm::utostr(Type) + ")";
+    return Result;
+  }
   }
 }
 

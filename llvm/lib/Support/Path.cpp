@@ -18,7 +18,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Process.h"
-#include "llvm/Support/Signals.h"
 #include <cctype>
 #include <cstring>
 
@@ -440,6 +439,10 @@ void append(SmallVectorImpl<char> &path, Style style, const Twine &a,
   for (auto &component : components) {
     bool path_has_sep =
         !path.empty() && is_separator(path[path.size() - 1], style);
+    bool component_has_sep =
+        !component.empty() && is_separator(component[0], style);
+    bool is_root_name = has_root_name(component, style);
+
     if (path_has_sep) {
       // Strip separators from beginning of component.
       size_t loc = component.find_first_not_of(separators(style));
@@ -450,10 +453,7 @@ void append(SmallVectorImpl<char> &path, Style style, const Twine &a,
       continue;
     }
 
-    bool component_has_sep =
-        !component.empty() && is_separator(component[0], style);
-    if (!component_has_sep &&
-        !(path.empty() || has_root_name(component, style))) {
+    if (!component_has_sep && !(path.empty() || is_root_name)) {
       // Add a separator.
       path.push_back(preferred_separator(style));
     }
@@ -760,83 +760,6 @@ std::error_code createUniqueFile(const Twine &Model,
   return createUniqueEntity(Model, Dummy, ResultPath, false, 0, FS_Name);
 }
 
-TempFile::TempFile(StringRef Name, int FD) : TmpName(Name), FD(FD) {}
-TempFile::TempFile(TempFile &&Other) { *this = std::move(Other); }
-TempFile &TempFile::operator=(TempFile &&Other) {
-  TmpName = std::move(Other.TmpName);
-  FD = Other.FD;
-  Other.Done = true;
-  return *this;
-}
-
-TempFile::~TempFile() { assert(Done); }
-
-Error TempFile::discard() {
-  Done = true;
-  // Always try to close and remove.
-  std::error_code RemoveEC;
-  if (!TmpName.empty()) {
-    RemoveEC = fs::remove(TmpName);
-    sys::DontRemoveFileOnSignal(TmpName);
-  }
-  if (FD != -1 && close(FD) == -1) {
-    std::error_code EC = std::error_code(errno, std::generic_category());
-    return errorCodeToError(EC);
-  }
-  return errorCodeToError(RemoveEC);
-}
-
-Error TempFile::keep(const Twine &Name) {
-  assert(!Done);
-  Done = true;
-  // Always try to close and rename.
-  std::error_code RenameEC = fs::rename(TmpName, Name);
-  sys::DontRemoveFileOnSignal(TmpName);
-
-  if (!RenameEC)
-    TmpName = "";
-
-  if (close(FD) == -1) {
-    std::error_code EC(errno, std::generic_category());
-    return errorCodeToError(EC);
-  }
-  FD = -1;
-
-  return errorCodeToError(RenameEC);
-}
-
-Error TempFile::keep() {
-  assert(!Done);
-  Done = true;
-
-  sys::DontRemoveFileOnSignal(TmpName);
-  TmpName = "";
-
-  if (close(FD) == -1) {
-    std::error_code EC(errno, std::generic_category());
-    return errorCodeToError(EC);
-  }
-  FD = -1;
-
-  return Error::success();
-}
-
-Expected<TempFile> TempFile::create(const Twine &Model, unsigned Mode) {
-  int FD;
-  SmallString<128> ResultPath;
-  if (std::error_code EC = createUniqueFile(Model, FD, ResultPath, Mode))
-    return errorCodeToError(EC);
-
-  // Make sure we delete the file when RemoveFileOnSignal fails.
-  TempFile Ret(ResultPath, FD);
-  if (sys::RemoveFileOnSignal(ResultPath)) {
-    consumeError(Ret.discard());
-    std::error_code EC(errc::operation_not_permitted);
-    return errorCodeToError(EC);
-  }
-  return std::move(Ret);
-}
-
 static std::error_code
 createTemporaryFile(const Twine &Model, int &ResultFD,
                     llvm::SmallVectorImpl<char> &ResultPath, FSEntity Type) {
@@ -1030,11 +953,11 @@ ErrorOr<MD5::MD5Result> md5_contents(const Twine &Path) {
   return Result;
 }
 
-bool exists(const basic_file_status &status) {
+bool exists(file_status status) {
   return status_known(status) && status.type() != file_type::file_not_found;
 }
 
-bool status_known(const basic_file_status &s) {
+bool status_known(file_status s) {
   return s.type() != file_type::status_error;
 }
 
@@ -1045,7 +968,7 @@ file_type get_file_type(const Twine &Path, bool Follow) {
   return st.type();
 }
 
-bool is_directory(const basic_file_status &status) {
+bool is_directory(file_status status) {
   return status.type() == file_type::directory_file;
 }
 
@@ -1057,7 +980,7 @@ std::error_code is_directory(const Twine &path, bool &result) {
   return std::error_code();
 }
 
-bool is_regular_file(const basic_file_status &status) {
+bool is_regular_file(file_status status) {
   return status.type() == file_type::regular_file;
 }
 
@@ -1069,7 +992,7 @@ std::error_code is_regular_file(const Twine &path, bool &result) {
   return std::error_code();
 }
 
-bool is_symlink_file(const basic_file_status &status) {
+bool is_symlink_file(file_status status) {
   return status.type() == file_type::symlink_file;
 }
 
@@ -1081,7 +1004,7 @@ std::error_code is_symlink_file(const Twine &path, bool &result) {
   return std::error_code();
 }
 
-bool is_other(const basic_file_status &status) {
+bool is_other(file_status status) {
   return exists(status) &&
          !is_regular_file(status) &&
          !is_directory(status);
@@ -1095,12 +1018,15 @@ std::error_code is_other(const Twine &Path, bool &Result) {
   return std::error_code();
 }
 
-void directory_entry::replace_filename(const Twine &filename,
-                                       basic_file_status st) {
+void directory_entry::replace_filename(const Twine &filename, file_status st) {
   SmallString<128> path = path::parent_path(Path);
   path::append(path, filename);
   Path = path.str();
   Status = st;
+}
+
+std::error_code directory_entry::status(file_status &result) const {
+  return fs::status(Path, result, FollowSymlinks);
 }
 
 ErrorOr<perms> getPermissions(const Twine &Path) {

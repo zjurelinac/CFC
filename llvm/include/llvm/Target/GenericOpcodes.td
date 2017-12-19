@@ -55,12 +55,6 @@ def G_IMPLICIT_DEF : Instruction {
   let hasSideEffects = 0;
 }
 
-def G_PHI : Instruction {
-  let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins variable_ops);
-  let hasSideEffects = 0;
-}
-
 def G_FRAME_INDEX : Instruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins unknown:$src2);
@@ -116,12 +110,6 @@ def G_VAARG : Instruction {
   let hasSideEffects = 0;
   let mayLoad = 1;
   let mayStore = 1;
-}
-
-def G_BSWAP : Instruction {
-  let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src);
-  let hasSideEffects = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -469,7 +457,7 @@ def G_FLOG2 : Instruction {
 // Generic load. Expects a MachineMemOperand in addition to explicit operands.
 def G_LOAD : Instruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins ptype1:$addr);
+  let InOperandList = (ins type1:$addr);
   let hasSideEffects = 0;
   let mayLoad = 1;
 }
@@ -477,7 +465,7 @@ def G_LOAD : Instruction {
 // Generic store. Expects a MachineMemOperand in addition to explicit operands.
 def G_STORE : Instruction {
   let OutOperandList = (outs);
-  let InOperandList = (ins type0:$src, ptype1:$addr);
+  let InOperandList = (ins type0:$src, type1:$addr);
   let hasSideEffects = 0;
   let mayStore = 1;
 }
@@ -486,8 +474,8 @@ def G_STORE : Instruction {
 // Variadic ops
 //------------------------------------------------------------------------------
 
-// Extract a register of the specified size, starting from the block given by
-// index. This will almost certainly be mapped to sub-register COPYs after
+// Extract multiple registers specified size, starting from blocks given by
+// indexes. This will almost certainly be mapped to sub-register COPYs after
 // register banks have been selected.
 def G_EXTRACT : Instruction {
   let OutOperandList = (outs type0:$res);
@@ -511,7 +499,6 @@ def G_INSERT : Instruction {
   let hasSideEffects = 0;
 }
 
-/// Concatenante multiple registers of the same size into a wider register.
 def G_MERGE_VALUES : Instruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins variable_ops);

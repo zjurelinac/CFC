@@ -13,36 +13,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/IR/Argument.h"
-#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallSite.h"
-#include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalAlias.h"
-#include "llvm/IR/GlobalObject.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/InlineAsm.h"
-#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Operator.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Value.h"
-#include "llvm/Support/Casting.h"
-#include <cassert>
-#include <limits>
-#include <memory>
-#include <utility>
-
 using namespace llvm;
 
 // Out of line method to get vtable etc for class.
@@ -104,6 +85,7 @@ struct MappingContext {
       : VM(&VM), Materializer(Materializer) {}
 };
 
+class MDNodeMapper;
 class Mapper {
   friend class MDNodeMapper;
 
@@ -193,7 +175,7 @@ class MDNodeMapper {
   /// Data about a node in \a UniquedGraph.
   struct Data {
     bool HasChanged = false;
-    unsigned ID = std::numeric_limits<unsigned>::max();
+    unsigned ID = ~0u;
     TempMDNode Placeholder;
   };
 
@@ -334,7 +316,7 @@ private:
   void remapOperands(MDNode &N, OperandMapper mapOperand);
 };
 
-} // end anonymous namespace
+} // end namespace
 
 Value *Mapper::mapValue(const Value *V) {
   ValueToValueMapTy::iterator I = getVM().find(V);
@@ -597,7 +579,6 @@ void MDNodeMapper::remapOperands(MDNode &N, OperandMapper mapOperand) {
 }
 
 namespace {
-
 /// An entry in the worklist for the post-order traversal.
 struct POTWorklistEntry {
   MDNode *N;              ///< Current node.
@@ -609,8 +590,7 @@ struct POTWorklistEntry {
 
   POTWorklistEntry(MDNode &N) : N(&N), Op(N.op_begin()) {}
 };
-
-} // end anonymous namespace
+} // end namespace
 
 bool MDNodeMapper::createPOT(UniquedGraph &G, const MDNode &FirstN) {
   assert(G.Info.empty() && "Expected a fresh traversal");
@@ -673,7 +653,7 @@ void MDNodeMapper::UniquedGraph::propagateChanges() {
       if (D.HasChanged)
         continue;
 
-      if (llvm::none_of(N->operands(), [&](const Metadata *Op) {
+      if (none_of(N->operands(), [&](const Metadata *Op) {
             auto Where = Info.find(Op);
             return Where != Info.end() && Where->second.HasChanged;
           }))
@@ -772,11 +752,10 @@ struct MapMetadataDisabler {
   MapMetadataDisabler(ValueToValueMapTy &VM) : VM(VM) {
     VM.disableMapMetadata();
   }
-
   ~MapMetadataDisabler() { VM.enableMapMetadata(); }
 };
 
-} // end anonymous namespace
+} // end namespace
 
 Optional<Metadata *> Mapper::mapSimpleMetadata(const Metadata *MD) {
   // If the value already exists in the map, use it.
@@ -1058,13 +1037,11 @@ public:
   explicit FlushingMapper(void *pImpl) : M(*getAsMapper(pImpl)) {
     assert(!M.hasWorkToDo() && "Expected to be flushed");
   }
-
   ~FlushingMapper() { M.flush(); }
-
   Mapper *operator->() const { return &M; }
 };
 
-} // end anonymous namespace
+} // end namespace
 
 ValueMapper::ValueMapper(ValueToValueMapTy &VM, RemapFlags Flags,
                          ValueMapTypeRemapper *TypeMapper,
