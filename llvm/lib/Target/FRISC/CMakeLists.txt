@@ -24,7 +24,7 @@ add_llvm_target(FRISCCodeGen
   FRISCSubtarget.cpp
   FRISCTargetMachine.cpp
   FRISCMachineFunctionInfo.cpp
-  FRISCSelectionDAGInfo.cpp
+#  FRISCSelectionDAGInfo.cpp
   )
 
 #add_subdirectory(AsmParser)

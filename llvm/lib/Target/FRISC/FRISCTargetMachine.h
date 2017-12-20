@@ -28,11 +28,16 @@ class FRISCTargetMachine : public LLVMTargetMachine {
 
 public:
   FRISCTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
-                   StringRef FS, const TargetOptions &Options, Reloc::Model RM,
-                   CodeModel::Model CM, CodeGenOpt::Level OL);
+                     StringRef FS, const TargetOptions &Options,
+                     Optional<Reloc::Model> RM, CodeModel::Model CM,
+                     CodeGenOpt::Level OL);
 
-  const FRISCSubtarget * getSubtargetImpl() const {
-    return &Subtarget;
+
+  // Pass Pipeline Configuration
+  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+  
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
   }
 
   virtual const TargetSubtargetInfo *
@@ -40,12 +45,6 @@ public:
     return &Subtarget;
   }
 
-  // Pass Pipeline Configuration
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
-
-  TargetLoweringObjectFile *getObjFileLowering() const override {
-    return TLOF.get();
-  }
 };
 
 } // end namespace llvm

@@ -92,7 +92,7 @@ void FRISCInstPrinter::printPCRelImm(const MCInst *MI, unsigned OpNo,
   }
 }
 
-void FRISCInstPrinter::printCCOperand(const MCInst *MI, unsigned OpNo,
+void FRISCInstPrinter::printCondCode(const MCInst *MI, unsigned OpNo,
                                        raw_ostream &O) {
   unsigned CC = MI->getOperand(OpNo).getImm();
 
