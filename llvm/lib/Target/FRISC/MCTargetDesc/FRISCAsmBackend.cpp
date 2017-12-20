@@ -41,15 +41,15 @@ public:
     return FRISC::NumTargetFixupKinds;
   }
 
-    const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override {
-      const static MCFixupKindInfo Infos[FRISC::NumTargetFixupKinds] = {
-        // This table *must* be in the order that the fixup_* kinds are defined in
-        // FRISCFixupKinds.h.
-        //
-        // Name            Offset (bits) Size (bits)     Flags
-        { "fixup_FRISC_NONE",   0,  32,   0 },
-        { "fixup_FRISC_32",     0,  32,   0 },
-      };
+  const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override {
+     const static MCFixupKindInfo Infos[FRISC::NumTargetFixupKinds] = {
+      // This table *must* be in the order that the fixup_* kinds are defined in
+      // FRISCFixupKinds.h.
+      //
+      // Name            Offset (bits) Size (bits)     Flags
+      { "fixup_FRISC_NONE",   0,  32,   0 },
+      { "fixup_FRISC_32",     0,  32,   0 },
+    };
 
     if (Kind < FirstTargetFixupKind) {
       return MCAsmBackend::getFixupKindInfo(Kind);
@@ -60,15 +60,16 @@ public:
     return Infos[Kind - FirstTargetFixupKind];
   }
 
-  void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
-                  uint64_t Value, bool IsPCRel) const override;
+  void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
+                    const MCValue &Target, MutableArrayRef<char> Data,
+                    uint64_t Value, bool IsResolved) const override;
 
   /// processFixupValue - Target hook to process the literal value of a fixup
   /// if necessary.
-  void processFixupValue(const MCAssembler &Asm, const MCAsmLayout &Layout,
-                         const MCFixup &Fixup, const MCFragment *DF,
-                         const MCValue &Target, uint64_t &Value,
-                         bool &IsResolved) override;
+  // void processFixupValue(const MCAssembler &Asm, const MCAsmLayout &Layout,
+  //                        const MCFixup &Fixup, const MCFragment *DF,
+  //                        const MCValue &Target, uint64_t &Value,
+  //                        bool &IsResolved) override;
 
   bool mayNeedRelaxation(const MCInst &Inst) const override {
     return false;
@@ -106,41 +107,40 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
   switch (Kind) {
     default:
       llvm_unreachable("Unknown fixup kind!");
-      case FRISC::fixup_FRISC_32:
-        if (Value > 0xFFFFF) {
-          llvm_unreachable("Cannot process value larger than 20 bits");
-        }
-        return Value;
-        break;
+    case FRISC::fixup_FRISC_32:
+      if (Value > 0xFFFFF) {
+        llvm_unreachable("Cannot process value larger than 20 bits");
+      }
+      return Value;
+      break;
   } // switch
 
   return Value;
 }
 
-void FRISCAsmBackend::processFixupValue(const MCAssembler &Asm,
-                                      const MCAsmLayout &Layout,
-                                      const MCFixup &Fixup,
-                                      const MCFragment *DF,
-                                      const MCValue &Target, uint64_t &Value,
-                                      bool &IsResolved) {
-  // We always have resolved fixups for now.
-  IsResolved = true;
-  // At this point we'll ignore the value returned by adjustFixupValue as
-  // we are only checking if the fixup can be applied correctly.
-  (void)adjustFixupValue(Fixup, Value, &Asm.getContext());
-}
+// void FRISCAsmBackend::processFixupValue(const MCAssembler &Asm,
+//                                       const MCAsmLayout &Layout,
+//                                       const MCFixup &Fixup,
+//                                       const MCFragment *DF,
+//                                       const MCValue &Target, uint64_t &Value,
+//                                       bool &IsResolved) {
+//   // We always have resolved fixups for now.
+//   IsResolved = true;
+//   // At this point we'll ignore the value returned by adjustFixupValue as
+//   // we are only checking if the fixup can be applied correctly.
+//   (void) adjustFixupValue(Fixup, Value, &Asm.getContext());
+// }
 
-// TODO: What is this stuff?
-void FRISCAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
-                                 unsigned DataSize, uint64_t Value,
-                                 bool IsPCRel) const {
-  if (IsPCRel) {
+void FRISCAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
+                    const MCValue &Target, MutableArrayRef<char> Data,
+                    uint64_t Value, bool IsResolved) const {
+  /*if (IsPCRel) { // FIX: No IsPCRel param available
     llvm_unreachable("PC Rel not currently implemented");
-  }
+  }*/
 
   // The value of the fixup (e.g. The jump address in bytes)
   if (!Value) {
-  Value = adjustFixupValue(Fixup, Value);
+    Value = adjustFixupValue(Fixup, Value);
     return; // Doesn't change encoding.
   }
 
@@ -148,16 +148,14 @@ void FRISCAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
   // (e.g. a jump instruction that was encoded without a destination)
   unsigned Offset = Fixup.getOffset();
 
-  // If the location is not in memory
-  assert(Offset <= DataSize && "Invalid fixup offset!");
-
   // For now we are assuming fixups are only for jump/call addresses
   // FIXME: The arch is currently addressed by words so convert address to words
-  assert(Value%4 == 0 && "The destination address is not aligned to a word");
+  assert(Value % 4 == 0 && "The destination address is not aligned to a word");
 
   // Place the address into the instruction
-  Data[Offset] = Value & 0xFF;
-  Data[Offset+1] = uint8_t((Value >> 8) & 0xFF);
+  Data[Offset] = uint8_t(Value & 0xFF);
+  Data[Offset + 1] = uint8_t((Value >> 8) & 0xFF);
+  Data[Offset + 2] |= uint8_t((Value >> 16) & 0x0F);
 
   return;
 }
