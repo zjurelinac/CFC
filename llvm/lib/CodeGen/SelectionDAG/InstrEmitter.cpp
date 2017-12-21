@@ -798,11 +798,21 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
   if (II.isVariadic())
     assert(NumMIOperands >= II.getNumOperands() &&
            "Too few operands for a variadic node!");
-  else
+  else {
+    if (NumMIOperands < II.getNumOperands())
+      DEBUG(dbgs() << "NumMIOperands < II.getNumOperands()\n");
+    if (NumMIOperands > II.getNumOperands() + II.getNumImplicitDefs() + NumImpUses)
+      DEBUG(dbgs() << "NumMIOperands <= II.getNumOperands() + II.getNumImplicitDefs() + NumImpUses\n");
+    if (NumMIOperands < II.getNumOperands() ||
+           NumMIOperands > II.getNumOperands() + II.getNumImplicitDefs() +
+                            NumImpUses)
+      Node->dump();
+    
     assert(NumMIOperands >= II.getNumOperands() &&
            NumMIOperands <= II.getNumOperands() + II.getNumImplicitDefs() +
                             NumImpUses &&
            "#operands for dag node doesn't match .td file!");
+  }
 #endif
 
   // Create the new machine instruction.

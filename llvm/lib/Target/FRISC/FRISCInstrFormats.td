@@ -109,7 +109,7 @@ let Defs = [SR] in {
             let Inst{16-0} = 0;
         }
         def _ri : FRISCInst<opcode, (outs GPR:$dst), (ins GPR:$src1, Imm20:$src2),
-                            !strconcat(opstr, "\t$dst, $src1, $src2"), [(set i32:$dst, (opnode i32:$src1, i32:$src2)), (implicit SR)]>{
+                            !strconcat(opstr, "\t$dst, $src1, $src2"), [(set i32:$dst, (opnode i32:$src1, imm:$src2)), (implicit SR)]>{
             bits<3> dst;
             bits<3> src1;
             bits<3> src2;

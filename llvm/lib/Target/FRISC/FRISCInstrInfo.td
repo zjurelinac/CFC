@@ -126,7 +126,7 @@ let isAsCheapAsAMove = 1 in {
         let Inst{19-17} = src;
     }
 
-    def MOVE_ri : FRISCInst<OPC_MOVE, (outs GPR:$dst), (ins Imm20:$src), "MOVE\t$src, $dst", []> {
+    def MOVE_ri : FRISCInst<OPC_MOVE, (outs GPR:$dst), (ins Imm20:$src), "MOVE\t$src, $dst", [(set GPR:$dst, imm:$src)]> {
         let isMoveImm = 1;
 
         bits<3> dst;
