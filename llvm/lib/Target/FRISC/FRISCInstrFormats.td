@@ -83,13 +83,6 @@ def MemSrc : Operand<i32> {
     let EncoderMethod = "getMemSrcValue";
 }
 
-// Pointer memory type
-/*def memptr : Operand<iPTR> {
-  let PrintMethod = "printMemSrcOperand";
-  let EncoderMethod = "getMemSrcValue";
-  let MIOperandInfo = (ops GPRegs, CJGimm16);
-}*/
-
 //===----------------------------------------------------------------------===//
 // FRISC Complex Pattern Definitions.
 //===----------------------------------------------------------------------===//

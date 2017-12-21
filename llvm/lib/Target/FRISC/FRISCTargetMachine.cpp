@@ -77,7 +77,7 @@ bool FRISCPassConfig::addInstSelector() {
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeCJGTarget() {
+extern "C" void LLVMInitializeFRISCTarget() {
   RegisterTargetMachine<FRISCTargetMachine> X(getTheFRISCTarget());
 }
 

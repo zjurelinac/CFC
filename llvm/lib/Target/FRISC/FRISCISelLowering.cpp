@@ -65,7 +65,6 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM,
   setOperationAction(ISD::BR_JT,            MVT::Other,   Expand);
   setOperationAction(ISD::BR_CC,            MVT::i32,     Custom);
   setOperationAction(ISD::BRCOND,           MVT::Other,   Expand);
-  setOperationAction(ISD::SELECT,           MVT::i32,     Expand);
   setOperationAction(ISD::GlobalAddress,    MVT::i32,     Custom);
   setOperationAction(ISD::ExternalSymbol,   MVT::i32,     Custom);
 
@@ -82,7 +81,6 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM,
 SDValue FRISCTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
     case ISD::BR_CC:            return LowerBR_CC(Op, DAG);
-    case ISD::SELECT_CC:        return LowerSELECT_CC(Op, DAG);
     case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
     case ISD::ExternalSymbol:   return LowerExternalSymbol(Op, DAG);
     default:
@@ -223,6 +221,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
       break;
     }
     TCC = FRISCCC::COND_ULE;    // aka COND_ULE
+    break;
   case ISD::SETUGE:
     // Turn lhs u>= rhs with lhs constant into rhs u< lhs+1, this allows us to
     // fold constant into instruction.
@@ -242,6 +241,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
       break;
     }
     TCC = FRISCCC::COND_UGT;    // aka COND_UGT
+    break;
   case ISD::SETULT:
     // Turn lhs u< rhs with lhs constant into rhs u>= lhs+1, this allows us to
     // fold constant into instruction.
@@ -261,6 +261,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
       break;
     }
     TCC = FRISCCC::COND_SLE;
+    break;
   case ISD::SETGE:
     // Turn lhs >= rhs with lhs constant into rhs < lhs+1, this allows us to
     // fold constant into instruction.
