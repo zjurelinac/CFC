@@ -19,8 +19,11 @@ include "FRISCInstrFormats.td"
 
 // Ensure the two operands of compare are of the same type
 def SDT_FRISCCmp        : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
-def SDT_FRISCBrCC       : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,    // ???
+def SDT_FRISCBrCC       : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,
                                                SDTCisVT<1, i32>]>;
+def SDT_FRISCSelectCC   : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
+                                               SDTCisSameAs<1, 2>,
+                                               SDTCisVT<3, i32>]>;
 def SDT_FRISCWrapper    : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                SDTCisPtrTy<0>]>;
 def SDT_FRISCCall         : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
@@ -34,7 +37,8 @@ def SDT_FRISCCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
 def FRISCretFlag : SDNode<"FRISCISD::RET_FLAG", SDTNone,
                      [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 def FRISCcmp     : SDNode<"FRISCISD::CMP", SDT_FRISCCmp, [SDNPOutGlue]>;
-def FRISCbrcc    : SDNode<"FRISCISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain, SDNPInGlue]>;  // ???
+def FRISCbrcc    : SDNode<"FRISCISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain, SDNPInGlue]>;
+def FRISCSelectCC: SDNode<"FRISCISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;
 def FRISCWrapper : SDNode<"FRISCISD::Wrapper", SDT_FRISCWrapper>;
 def FRISCcall    : SDNode<"FRISCISD::CALL", SDT_FRISCCall,
                       [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue, SDNPVariadic]>;
@@ -76,10 +80,10 @@ let isCompare = 1 in {
 
 // Memory operations
 
-def LOAD_i  : MemInst_i<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins Imm20:$addr), [(set GPR:$dst, (load addr:$addr))]>;
-def STORE_i : MemInst_i<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
+//def LOAD_i  : MemInst_i<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins Imm20:$addr), [(set GPR:$dst, (load addr:$addr))]>;
+//def STORE_i : MemInst_i<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
 def LOAD_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (load addr:$addr))]>;
-def STORE_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins GPR:$dst, MemSrc:$addr), [(store GPR:$dst, addr:$addr)]>;
+def STORE_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst), [(store GPR:$dst, addr:$addr)]>;
 
 def PUSH    : StackInst<OPC_PUSH, "PUSH", (outs), (ins GPR:$reg), []>;
 def POP     : StackInst<OPC_POP, "POP", (outs GPR:$reg), (ins), []>;
@@ -155,6 +159,13 @@ let Defs = [SP], Uses = [SP] in {
 // Non-Instruction Patterns
 //===----------------------------------------------------------------------===//
 
+let usesCustomInserter = 1 in
+def Select : FRISCPseudo<(outs GPR:$dst),
+                         (ins GPR:$src, GPR:$src2, i32imm:$condition),
+                         "# Select PSEUDO",
+                         [(set GPR:$dst,
+                          (FRISCSelectCC i32:$src, i32:$src2, imm:$condition))]>;
+
 // GlobalAddress, ExternalSymbol
 def : Pat<(i32 (FRISCWrapper tglobaladdr:$dst)), (MOVE_ri tglobaladdr:$dst)>;
 def : Pat<(i32 (FRISCWrapper texternalsym:$dst)), (MOVE_ri texternalsym:$dst)>;
@@ -165,9 +176,9 @@ def : Pat<(add GPR:$src, (FRISCWrapper texternalsym:$src2)),
           (ADD_ri GPR:$src, texternalsym:$src2)>;
 
 def : Pat<(store (i32 (FRISCWrapper tglobaladdr:$src)), addr:$dst),
-          (STORE_i addr:$dst, tglobaladdr:$src)>;
+          (STORE_ri addr:$dst, tglobaladdr:$src)>;
 def : Pat<(store (i32 (FRISCWrapper texternalsym:$src)), addr:$dst),
-          (STORE_i addr:$dst, texternalsym:$src)>;
+          (STORE_ri addr:$dst, texternalsym:$src)>;
 
 // Calls
 def : Pat<(FRISCcall (i32 tglobaladdr:$addr)),

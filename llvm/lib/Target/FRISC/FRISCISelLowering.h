@@ -37,6 +37,9 @@ enum NodeType {
   // Branch conditional, condition-code
   BR_CC,
 
+  // Select the condition code
+  SELECT_CC,
+
   // Wrapper - A wrapper node for TargetConstantPool, TargetExternalSymbol,
   // and TargetGlobalAddress.
   Wrapper,
@@ -67,9 +70,9 @@ public:
   // This method returns the name of a target specific DAG node.
   virtual const char *getTargetNodeName(unsigned Opcode) const override;
 
-  /*MachineBasicBlock *
+  MachineBasicBlock *
   EmitInstrWithCustomInserter(MachineInstr &MI,
-                              MachineBasicBlock *BB) const override;*/
+                              MachineBasicBlock *BB) const override;
 
 private:
   // Lower incoming arguments, copy physregs into vregs
@@ -92,7 +95,7 @@ private:
                           const SmallVectorImpl<ISD::InputArg> &Ins,
                           const SDLoc &dl, SelectionDAG &DAG,
                           SmallVectorImpl<SDValue> &InVals) const;
-  
+
   bool shouldConvertConstantLoadToIntImm(const APInt &Imm,
                                          Type *Ty) const override {
     return true;

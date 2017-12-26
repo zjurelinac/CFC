@@ -37,9 +37,11 @@ using namespace llvm;
 
 const char *FRISCTargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch ((FRISCISD::NodeType)Opcode) {
+    case CJGISD::FIRST_NUMBER:              break;
     case FRISCISD::CMP:                     return "FRISCISD::CMP";
     case FRISCISD::RET_FLAG:                return "FRISCISD::RET_FLAG";
     case FRISCISD::BR_CC:                   return "FRISCISD::BR_CC";
+    case FRISCISD::SELECT_CC:               return "FRISCISD::SELECT_CC";
     case FRISCISD::Wrapper:                 return "FRISCISD::Wrapper";
     case FRISCISD::CALL:                    return "FRISCISD::CALL";
   }
@@ -65,6 +67,10 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM,
   setOperationAction(ISD::BR_JT,            MVT::Other,   Expand);
   setOperationAction(ISD::BR_CC,            MVT::i32,     Custom);
   setOperationAction(ISD::BRCOND,           MVT::Other,   Expand);
+
+  setOperationAction(ISD::SETCC,            MVT::i32,     Expand);
+  setOperationAction(ISD::SELECT,           MVT::i32,     Expand);
+  setOperationAction(ISD::SELECT_CC,        MVT::i32,     Custom);
   setOperationAction(ISD::GlobalAddress,    MVT::i32,     Custom);
   setOperationAction(ISD::ExternalSymbol,   MVT::i32,     Custom);
 
@@ -81,6 +87,7 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM,
 SDValue FRISCTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
     case ISD::BR_CC:            return LowerBR_CC(Op, DAG);
+    case ISD::SELECT_CC:        return LowerSELECT_CC(Op, DAG);
     case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
     case ISD::ExternalSymbol:   return LowerExternalSymbol(Op, DAG);
     default:
@@ -314,7 +321,7 @@ SDValue FRISCTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
                      Chain, Dest, TargetCC, Flag);
 }
 
-/*SDValue FRISCTargetLowering::LowerSELECT_CC(SDValue Op,
+SDValue FRISCTargetLowering::LowerSELECT_CC(SDValue Op,
                                              SelectionDAG &DAG) const {
   SDValue LHS    = Op.getOperand(0);
   SDValue RHS    = Op.getOperand(1);
@@ -330,7 +337,7 @@ SDValue FRISCTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Ops[] = {TrueV, FalseV, TargetCC, Flag};
 
   return DAG.getNode(FRISCISD::SELECT_CC, dl, VTs, Ops);
-}*/
+}
 
 SDValue FRISCTargetLowering::LowerGlobalAddress(SDValue Op,
                                               SelectionDAG &DAG) const {
@@ -353,7 +360,7 @@ SDValue FRISCTargetLowering::LowerExternalSymbol(SDValue Op,
   return DAG.getNode(FRISCISD::Wrapper, dl, PtrVT, Result);
 }
 
-/*MachineBasicBlock *
+MachineBasicBlock *
 FRISCTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
                                                MachineBasicBlock *BB) const {
   unsigned Opc = MI.getOpcode();
@@ -391,7 +398,7 @@ FRISCTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
   BB->addSuccessor(copy0MBB);
   BB->addSuccessor(copy1MBB);
 
-  BuildMI(BB, dl, TII.get(FRISC::JCC))
+  BuildMI(BB, dl, TII.get(FRISC::JPcc_i))
       .addMBB(copy1MBB)
       .addImm(MI.getOperand(3).getImm());
 
@@ -415,7 +422,7 @@ FRISCTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
 
   MI.eraseFromParent(); // The pseudo instruction is gone now.
   return BB;
-}*/
+}
 
 /// For each argument in a function store the number of pieces it is composed
 /// of.

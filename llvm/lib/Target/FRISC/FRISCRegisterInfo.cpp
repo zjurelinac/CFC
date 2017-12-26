@@ -64,8 +64,8 @@ void FRISCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   switch (MI.getOpcode()) {
     default:
       llvm_unreachable("Instruction not supported");
-    case FRISC::LOAD_i:
-    case FRISC::STORE_i:
+    case FRISC::LOAD_ri:
+    case FRISC::STORE_ri:
     case FRISC::ADD_ri:
       ImmOpIdx = FIOperandNum + 1;
       break;
