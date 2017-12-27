@@ -80,10 +80,21 @@ let isCompare = 1 in {
 
 // Memory operations
 
-//def LOAD_i  : MemInst_i<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins Imm20:$addr), [(set GPR:$dst, (load addr:$addr))]>;
-//def STORE_i : MemInst_i<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
-def LOAD_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (load addr:$addr))]>;
-def STORE_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst), [(store GPR:$dst, addr:$addr)]>;
+let mayLoad = 1 in {
+  def LOADB_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (zextloadi8 addr:$addr))]>;
+  def LOADH_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (zextloadi16 addr:$addr))]>;
+  def LOAD_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (load addr:$addr))]>;
+  //def LOAD_i  : MemInst_i<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins Imm20:$addr), [(set GPR:$dst, (load addr:$addr))]>;
+}
+
+let mayStore = 1 in {
+  def STOREB_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst), [(truncstorei8 GPR:$dst, addr:$addr)]>;
+  def STOREH_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst), [(truncstorei16 GPR:$dst, addr:$addr)]>;
+  def STORE_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst), [(store GPR:$dst, addr:$addr)]>;
+  //def STORE_i : MemInst_i<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
+}
+
+
 
 def PUSH    : StackInst<OPC_PUSH, "PUSH", (outs), (ins GPR:$reg), []>;
 def POP     : StackInst<OPC_POP, "POP", (outs GPR:$reg), (ins), []>;

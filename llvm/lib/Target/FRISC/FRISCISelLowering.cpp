@@ -37,7 +37,7 @@ using namespace llvm;
 
 const char *FRISCTargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch ((FRISCISD::NodeType)Opcode) {
-    case CJGISD::FIRST_NUMBER:              break;
+    case FRISCISD::FIRST_NUMBER:            break;
     case FRISCISD::CMP:                     return "FRISCISD::CMP";
     case FRISCISD::RET_FLAG:                return "FRISCISD::RET_FLAG";
     case FRISCISD::BR_CC:                   return "FRISCISD::BR_CC";
@@ -90,7 +90,11 @@ SDValue FRISCTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
     case ISD::SELECT_CC:        return LowerSELECT_CC(Op, DAG);
     case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
     case ISD::ExternalSymbol:   return LowerExternalSymbol(Op, DAG);
+    case ISD::LOAD:							return LowerLOAD(Op, DAG);
     default:
+	  DEBUG(dbgs() << "LowerOperation Unhandled SDValue: ");
+      Op.dump();
+      DEBUG(dbgs() << "\n");
       llvm_unreachable("unimplemented operand");
   }
 }
@@ -319,6 +323,13 @@ SDValue FRISCTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
 
   return DAG.getNode(FRISCISD::BR_CC, dl, Op.getValueType(),
                      Chain, Dest, TargetCC, Flag);
+}
+
+SDValue FRISCTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
+	Op.dumpr();
+	llvm_unreachable("unimplemented operand");
+	//for (int i = 0; i < Op.getNumOperands(); ++i)
+	//return SDValue();
 }
 
 SDValue FRISCTargetLowering::LowerSELECT_CC(SDValue Op,
