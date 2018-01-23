@@ -23,7 +23,7 @@ def SDT_CJGCmp          : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
 def SDT_CJGBrCC         : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,
                                                SDTCisVT<1, i32>]>;
 def SDT_CJGSelectCC     : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
-                                               SDTCisSameAs<1, 2>, 
+                                               SDTCisSameAs<1, 2>,
                                                SDTCisVT<3, i32>]>;
 def SDT_CJGWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                SDTCisPtrTy<0>]>;
@@ -109,7 +109,7 @@ multiclass ALU<bits<5> opcode, string opstr, SDNode opnode> {
                    [(set GPRegs:$ri, (opnode GPRegs:$rj, GPRegs:$rk)),
                     (implicit SR)]> {
   }
-  
+
   def ri : ALU_Inst_RI<opcode, (outs GPRegs:$ri),
                    (ins GPRegs:$rj, CJGimm16:$const),
                    !strconcat(opstr, "\t$ri, $rj, $const"),
@@ -161,7 +161,7 @@ let Defs = [SR] in {
 
 multiclass RotShift<bits<3> rs_op, string opstr, SDNode opnode> {
 
-  def rr : RotShift_Inst_RR<rs_op, 
+  def rr : RotShift_Inst_RR<rs_op,
                           (outs GPRegs:$ri),
                           (ins GPRegs:$rj, GPRegs:$rk),
                           !strconcat(opstr, "\t$ri, $rj, $rk"),
@@ -229,7 +229,7 @@ let Defs = [SP], hasSideEffects=0 in {
 let Defs = [SR] in {
 
 multiclass CMP_Inst<bits<5> opcode, string opstr> {
-  
+
   def rr : ALU_Inst_RR<opcode, (outs),
                    (ins GPRegs:$rj, GPRegs:$rk),
                    !strconcat(opstr, "\t$rj, $rk"),
@@ -237,7 +237,7 @@ multiclass CMP_Inst<bits<5> opcode, string opstr> {
                    (implicit SR)]> {
     let ri = 0b00000;
   }
-  
+
   def ri : ALU_Inst_RI<opcode, (outs),
                    (ins GPRegs:$rj, CJGimm16:$const),
                    !strconcat(opstr, "\t$rj, $const"),
@@ -335,9 +335,9 @@ def JCC : FC_Inst<0b00101,
 //===----------------------------------------------------------------------===//
 
 let Defs = [SP], Uses = [SP] in {
-def ADJCALLSTACKDOWN : CJGPseudoInst<(outs), (ins CJGimm16:$amt),
+def ADJCALLSTACKDOWN : CJGPseudoInst<(outs), (ins CJGimm16:$amt, CJGimm16:$amt2),
                                      "#ADJCALLSTACKDOWN",
-                                     [(CJGcallseq_start timm:$amt)]>;
+                                     [(CJGcallseq_start timm:$amt, timm:$amt2)]>;
 def ADJCALLSTACKUP : CJGPseudoInst<(outs), (ins CJGimm16:$amt1, CJGimm16:$amt2),
                                    "#ADJCALLSTACKUP",
                                    [(CJGcallseq_end timm:$amt1, timm:$amt2)]>;

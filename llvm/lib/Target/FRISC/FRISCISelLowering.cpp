@@ -54,6 +54,8 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM,
 
   // Set up the register classes.
   addRegisterClass(MVT::i32, &FRISC::GPRRegClass);
+  // addRegisterClass(MVT::i32, &FRISC::MDPseudoR0RegClass);
+  // addRegisterClass(MVT::i32, &FRISC::MDPseudoR1RegClass);
 
   // Compute derived properties from the register classes
   computeRegisterProperties(STI.getRegisterInfo());
@@ -77,10 +79,13 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM,
   for (MVT VT : MVT::integer_valuetypes()) {
     for (auto N : {ISD::EXTLOAD, ISD::SEXTLOAD, ISD::ZEXTLOAD}) {
       setLoadExtAction(N, VT, MVT::i1, Promote);
-      setLoadExtAction(N, VT, MVT::i8, Custom);
-      setLoadExtAction(N, VT, MVT::i16, Custom);
     }
   }
+
+  setOperationAction(ISD::UREM, MVT::i32, Expand);
+  setOperationAction(ISD::SREM, MVT::i32, Expand);
+  setOperationAction(ISD::UDIVREM, MVT::i32, Expand);
+  setOperationAction(ISD::SDIVREM, MVT::i32, Expand);
 
 }
 
@@ -90,10 +95,10 @@ SDValue FRISCTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const
     case ISD::SELECT_CC:        return LowerSELECT_CC(Op, DAG);
     case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
     case ISD::ExternalSymbol:   return LowerExternalSymbol(Op, DAG);
-    case ISD::LOAD:							return LowerLOAD(Op, DAG);
+
     default:
-	  DEBUG(dbgs() << "LowerOperation Unhandled SDValue: ");
-      Op.dump();
+	    DEBUG(dbgs() << "LowerOperation Unhandled SDValue: ");
+      Op.dumpr();
       DEBUG(dbgs() << "\n");
       llvm_unreachable("unimplemented operand");
   }
@@ -325,13 +330,6 @@ SDValue FRISCTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
                      Chain, Dest, TargetCC, Flag);
 }
 
-SDValue FRISCTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
-	Op.dumpr();
-	llvm_unreachable("unimplemented operand");
-	//for (int i = 0; i < Op.getNumOperands(); ++i)
-	//return SDValue();
-}
-
 SDValue FRISCTargetLowering::LowerSELECT_CC(SDValue Op,
                                              SelectionDAG &DAG) const {
   SDValue LHS    = Op.getOperand(0);
@@ -379,59 +377,84 @@ FRISCTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
   const TargetInstrInfo &TII = *BB->getParent()->getSubtarget().getInstrInfo();
   DebugLoc dl = MI.getDebugLoc();
 
-  assert(Opc == FRISC::Select && "Unexpected instr type to insert");
+  if (Opc == FRISC::Select) {
+    // To "insert" a SELECT instruction, we actually have to insert the diamond
+    // control-flow pattern.  The incoming instruction knows the destination vreg
+    // to set, the condition code register to branch on, the true/false values to
+    // select between, and a branch opcode to use.
+    const BasicBlock *LLVM_BB = BB->getBasicBlock();
+    MachineFunction::iterator I = ++BB->getIterator();
 
-  // To "insert" a SELECT instruction, we actually have to insert the diamond
-  // control-flow pattern.  The incoming instruction knows the destination vreg
-  // to set, the condition code register to branch on, the true/false values to
-  // select between, and a branch opcode to use.
-  const BasicBlock *LLVM_BB = BB->getBasicBlock();
-  MachineFunction::iterator I = ++BB->getIterator();
+    //  thisMBB:
+    //  ...
+    //   TrueVal = ...
+    //   cmpTY ccX, r1, r2
+    //   jCC copy1MBB
+    //   fallthrough --> copy0MBB
+    MachineBasicBlock *thisMBB = BB;
+    MachineFunction *F = BB->getParent();
+    MachineBasicBlock *copy0MBB = F->CreateMachineBasicBlock(LLVM_BB);
+    MachineBasicBlock *copy1MBB = F->CreateMachineBasicBlock(LLVM_BB);
+    F->insert(I, copy0MBB);
+    F->insert(I, copy1MBB);
+    // Update machine-CFG edges by transferring all successors of the current
+    // block to the new block which will contain the Phi node for the select.
+    copy1MBB->splice(copy1MBB->begin(), BB,
+                     std::next(MachineBasicBlock::iterator(MI)), BB->end());
+    copy1MBB->transferSuccessorsAndUpdatePHIs(BB);
+    // Next, add the true and fallthrough blocks as its successors.
+    BB->addSuccessor(copy0MBB);
+    BB->addSuccessor(copy1MBB);
 
-  //  thisMBB:
-  //  ...
-  //   TrueVal = ...
-  //   cmpTY ccX, r1, r2
-  //   jCC copy1MBB
-  //   fallthrough --> copy0MBB
-  MachineBasicBlock *thisMBB = BB;
-  MachineFunction *F = BB->getParent();
-  MachineBasicBlock *copy0MBB = F->CreateMachineBasicBlock(LLVM_BB);
-  MachineBasicBlock *copy1MBB = F->CreateMachineBasicBlock(LLVM_BB);
-  F->insert(I, copy0MBB);
-  F->insert(I, copy1MBB);
-  // Update machine-CFG edges by transferring all successors of the current
-  // block to the new block which will contain the Phi node for the select.
-  copy1MBB->splice(copy1MBB->begin(), BB,
-                   std::next(MachineBasicBlock::iterator(MI)), BB->end());
-  copy1MBB->transferSuccessorsAndUpdatePHIs(BB);
-  // Next, add the true and fallthrough blocks as its successors.
-  BB->addSuccessor(copy0MBB);
-  BB->addSuccessor(copy1MBB);
+    BuildMI(BB, dl, TII.get(FRISC::JPcc_i))
+        .addMBB(copy1MBB)
+        .addImm(MI.getOperand(3).getImm());
 
-  BuildMI(BB, dl, TII.get(FRISC::JPcc_i))
-      .addMBB(copy1MBB)
-      .addImm(MI.getOperand(3).getImm());
+    //  copy0MBB:
+    //   %FalseValue = ...
+    //   # fallthrough to copy1MBB
+    BB = copy0MBB;
 
-  //  copy0MBB:
-  //   %FalseValue = ...
-  //   # fallthrough to copy1MBB
-  BB = copy0MBB;
+    // Update machine-CFG edges
+    BB->addSuccessor(copy1MBB);
 
-  // Update machine-CFG edges
-  BB->addSuccessor(copy1MBB);
+    //  copy1MBB:
+    //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
+    //  ...
+    BB = copy1MBB;
+    BuildMI(*BB, BB->begin(), dl, TII.get(FRISC::PHI), MI.getOperand(0).getReg())
+        .addReg(MI.getOperand(2).getReg())
+        .addMBB(copy0MBB)
+        .addReg(MI.getOperand(1).getReg())
+        .addMBB(thisMBB);
 
-  //  copy1MBB:
-  //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
-  //  ...
-  BB = copy1MBB;
-  BuildMI(*BB, BB->begin(), dl, TII.get(FRISC::PHI), MI.getOperand(0).getReg())
-      .addReg(MI.getOperand(2).getReg())
-      .addMBB(copy0MBB)
-      .addReg(MI.getOperand(1).getReg())
-      .addMBB(thisMBB);
+    MI.eraseFromParent(); // The pseudo instruction is gone now.
+  } else {
+    // assert(false && "Got to MUL & DIV custom instructions.");
+    MachineBasicBlock::iterator I(MI);
 
-  MI.eraseFromParent(); // The pseudo instruction is gone now.
+    BuildMI(*BB, I, dl, TII.get(FRISC::PUSH)).addReg(MI.getOperand(1).getReg(), RegState::Kill);
+    BuildMI(*BB, I, dl, TII.get(FRISC::PUSH)).addReg(MI.getOperand(2).getReg(), RegState::Kill);
+
+    if (Opc == FRISC::MUL_rr)
+      BuildMI(*BB, I, dl,
+              TII.get(FRISC::CALL_i))
+              .addExternalSymbol("__frisc__mul");
+    else if (Opc == FRISC::UDIV_rr)
+      BuildMI(*BB, I, dl,
+              TII.get(FRISC::CALL_i))
+              .addExternalSymbol("__frisc__udiv");
+    else if (Opc == FRISC::SDIV_rr)
+      BuildMI(*BB, I, dl,
+              TII.get(FRISC::CALL_i))
+              .addExternalSymbol("__frisc__sdiv");
+    else
+      llvm_unreachable("Unknown operation, expected MUL, SDIV or UDIV!");
+
+    BuildMI(*BB, I, dl, TII.get(FRISC::POP)).addReg(MI.getOperand(0).getReg(), RegState::Define);
+
+    MI.eraseFromParent();  // The pseudo instruction is gone now.
+  }
   return BB;
 }
 

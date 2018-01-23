@@ -72,24 +72,34 @@ defm SHL  : ALUInst<OPC_SHL, "SHL", shl>;
 defm SHR  : ALUInst<OPC_SHR, "SHR", srl>;
 defm ASHR : ALUInst<OPC_ASHR, "ASHR", sra>;
 
-defm MUL  : ALUInst<OPC_MUL, "MUL", mul>;
-
 let isCompare = 1 in {
     defm CMP  : ALUInst2<OPC_CMP, "CMP", FRISCcmp>;
+}
+
+/*let usesCustomInserter = 1, Defs = [SR], Constraints = "$dst = $src1" in {
+    def MUL_rr : FRISCPseudo<(outs MDPseudoR0:$dst),  (ins MDPseudoR0:$src1, MDPseudoR1:$src2), "# MUL", [(set i32:$dst, (mul i32:$src1, i32:$src2)), (implicit SR)]>;
+    def UDIV_rr : FRISCPseudo<(outs MDPseudoR0:$dst),  (ins MDPseudoR0:$src1, MDPseudoR1:$src2), "# UDIV", [(set i32:$dst, (udiv i32:$src1, i32:$src2)), (implicit SR)]>;
+    def SDIV_rr : FRISCPseudo<(outs MDPseudoR0:$dst),  (ins MDPseudoR0:$src1, MDPseudoR1:$src2), "# SDIV", [(set i32:$dst, (sdiv i32:$src1, i32:$src2)), (implicit SR)]>;
+}*/
+
+let usesCustomInserter = 1, Defs = [SR] in {
+    def MUL_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; MUL $dst, $src1, $src2", [(set i32:$dst, (mul i32:$src1, i32:$src2)), (implicit SR)]>;
+    def SDIV_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; SDIV $dst, $src1, $src2", [(set i32:$dst, (sdiv i32:$src1, i32:$src2)), (implicit SR)]>;
+    def UDIV_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; UDIV $dst, $src1, $src2", [(set i32:$dst, (udiv i32:$src1, i32:$src2)), (implicit SR)]>;
 }
 
 // Memory operations
 
 let mayLoad = 1 in {
-  def LOADB_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (zextloadi8 addr:$addr))]>;
-  def LOADH_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (zextloadi16 addr:$addr))]>;
+  def LOADB_ri : MemInst_ri<OPC_LOAD, "LOADB", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (zextloadi8 addr:$addr))]>;
+  def LOADH_ri : MemInst_ri<OPC_LOAD, "LOADH", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (zextloadi16 addr:$addr))]>;
   def LOAD_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (load addr:$addr))]>;
   //def LOAD_i  : MemInst_i<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins Imm20:$addr), [(set GPR:$dst, (load addr:$addr))]>;
 }
 
 let mayStore = 1 in {
-  def STOREB_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst), [(truncstorei8 GPR:$dst, addr:$addr)]>;
-  def STOREH_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst), [(truncstorei16 GPR:$dst, addr:$addr)]>;
+  def STOREB_ri: MemInst_ri<OPC_STORE, "STOREB", (outs), (ins MemSrc:$addr, GPR:$dst), [(truncstorei8 GPR:$dst, addr:$addr)]>;
+  def STOREH_ri: MemInst_ri<OPC_STORE, "STOREH", (outs), (ins MemSrc:$addr, GPR:$dst), [(truncstorei16 GPR:$dst, addr:$addr)]>;
   def STORE_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst), [(store GPR:$dst, addr:$addr)]>;
   //def STORE_i : MemInst_i<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
 }
@@ -105,16 +115,16 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
     def JP_i    : CtrlInst_i<OPC_JP, (outs), (ins JMPTarget:$addr), "JP\t$addr", [(br bb:$addr)]>;
 }
 
-let isBranch = 1, isIndirectBranch = 1, isTerminator = 1, isBarrier = 1 in {
+/*let isBranch = 1, isIndirectBranch = 1, isTerminator = 1, isBarrier = 1 in {
     //def JR_i     : CtrlInst<OPC_JR, "JR", brind>;
-}
+}*/
 
 let isBranch = 1, isTerminator = 1, Uses = [SR] in {
     def JPcc_i    : CtrlInst_i<OPC_JP, (outs), (ins JMPTarget:$addr, CondCode:$cc), "JP_$cc\t$addr", [(FRISCbrcc bb:$addr, imm:$cc)]>;
 }
 
 let isCall = 1, Uses = [SP] in {
-    def CALL_i  : CtrlInst_i<OPC_CALL, (outs), (ins Imm20:$addr), "CALL\t($addr)", [(FRISCcall imm:$addr)]>;
+    def CALL_i  : CtrlInst_i<OPC_CALL, (outs), (ins Imm20:$addr), "CALL\t$addr", [(FRISCcall imm:$addr)]>;
 }
 
 // Return/Halt operations

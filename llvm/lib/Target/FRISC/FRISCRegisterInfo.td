@@ -29,4 +29,10 @@ def GPR : RegisterClass<"FRISC", [i32], 32, (add (sequence "R%u", 0, 6), SP)>;
 
 def SRClass : RegisterClass<"FRISC", [i32], 32, (add SR)>;
 def PCClass : RegisterClass<"FRISC", [i32], 32, (add PC)>;
+
+// Utility classes
+
+// def MDPseudoR0 : RegisterClass<"FRISC", [i32], 32, (add R4)>;
+// def MDPseudoR1 : RegisterClass<"FRISC", [i32], 32, (add R5)>;
+
 // TODO: Add Vector registers

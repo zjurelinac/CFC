@@ -39,7 +39,7 @@ static std::string computeDataLayout(const Triple &TT, StringRef CPU,
   dataLayout += "-f64:32"; // Align f64 to a 32-bit word
   dataLayout += "-a:0:32"; // Align aggregates to a 32-bit word
   dataLayout += "-n32"; // Set native integer width to 32-bits
-  
+
   // "e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-i64:32-f64:32-a:0:32-n32"
 
   return dataLayout;
@@ -73,7 +73,7 @@ CJGTargetMachine::CJGTargetMachine(const Target &T, const Triple &TT,
 namespace {
 class CJGPassConfig : public TargetPassConfig {
 public:
-  CJGPassConfig(CJGTargetMachine *TM, PassManagerBase &PM)
+  CJGPassConfig(CJGTargetMachine &TM, PassManagerBase &PM)
       : TargetPassConfig(TM, PM) {}
 
   CJGTargetMachine &getCJGTargetMachine() const {
@@ -85,7 +85,7 @@ public:
 }
 
 TargetPassConfig *CJGTargetMachine::createPassConfig(PassManagerBase &PM) {
-  return new CJGPassConfig(this, PM);
+  return new CJGPassConfig(*this, PM);
 }
 
 bool CJGPassConfig::addInstSelector() {

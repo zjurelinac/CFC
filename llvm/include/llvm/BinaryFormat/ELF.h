@@ -312,6 +312,7 @@ enum {
   EM_RISCV = 243,         // RISC-V
   EM_LANAI = 244,         // Lanai 32-bit processor
   EM_BPF = 247,           // Linux kernel bpf virtual machine
+  EM_CJG = 248,           // CJG processor
   EM_FRISC = 249,         // FRISC (FER RISC) processor
 
   // A request has been made to the maintainer of the official registry for
@@ -622,6 +623,13 @@ enum {
 #include "ELFRelocs/BPF.def"
 };
 
+enum {
+#include "ELFRelocs/CJG.def"
+};
+
+enum {
+#include "ELFRelocs/FRISC.def"
+};
 #undef ELF_RELOC
 
 // Section header.

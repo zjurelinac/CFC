@@ -1,0 +1,1 @@
+int mul3(int x) { return 3*x; }

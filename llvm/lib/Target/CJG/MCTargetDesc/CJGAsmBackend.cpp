@@ -30,7 +30,7 @@ class CJGAsmBackend : public MCAsmBackend {
 public:
   CJGAsmBackend(const Target &T, const StringRef TT, uint8_t OSABI)
      : MCAsmBackend(), OSABI(OSABI) {}
-  
+
   ~CJGAsmBackend() {}
 
   MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override;
@@ -59,21 +59,24 @@ public:
            "Invalid kind!");
     return Infos[Kind - FirstTargetFixupKind];
   }
-  
-  void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
-                  uint64_t Value, bool IsPCRel) const override;
+
+  void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
+                  const MCValue &Target, MutableArrayRef<char> Data,
+                  uint64_t Value, bool IsResolved
+                  /*const MCFixup &Fixup, char *Data, unsigned DataSize,
+                  uint64_t Value, bool IsPCRel*/) const override;
 
   /// processFixupValue - Target hook to process the literal value of a fixup
   /// if necessary.
-  void processFixupValue(const MCAssembler &Asm, const MCAsmLayout &Layout,
+  /*void processFixupValue(const MCAssembler &Asm, const MCAsmLayout &Layout,
                          const MCFixup &Fixup, const MCFragment *DF,
                          const MCValue &Target, uint64_t &Value,
-                         bool &IsResolved) override;
+                         bool &IsResolved) override;*/
 
   bool mayNeedRelaxation(const MCInst &Inst) const override {
     return false;
   }
-  
+
   bool fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,
                             const MCRelaxableFragment *DF,
                             const MCAsmLayout &Layout) const override {
@@ -117,7 +120,7 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
   return Value;
 }
 
-void CJGAsmBackend::processFixupValue(const MCAssembler &Asm,
+/*void CJGAsmBackend::processFixupValue(const MCAssembler &Asm,
                                       const MCAsmLayout &Layout,
                                       const MCFixup &Fixup,
                                       const MCFragment *DF,
@@ -128,18 +131,21 @@ void CJGAsmBackend::processFixupValue(const MCAssembler &Asm,
   // At this point we'll ignore the value returned by adjustFixupValue as
   // we are only checking if the fixup can be applied correctly.
   (void)adjustFixupValue(Fixup, Value, &Asm.getContext());
-}
+}*/
 
-void CJGAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
-                                 unsigned DataSize, uint64_t Value,
-                                 bool IsPCRel) const {
-  if (IsPCRel) {
+void CJGAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
+                    const MCValue &Target, MutableArrayRef<char> Data,
+                    uint64_t Value, bool IsResolved
+                    /*const MCFixup &Fixup, char *Data,
+                    unsigned DataSize, uint64_t Value,
+                    bool IsPCRel*/) const {
+  /*if (IsPCRel) {
     llvm_unreachable("PC Rel not currently implemented");
-  }
+  }*/
 
   // The value of the fixup (e.g. The jump address in bytes)
   if (!Value) {
-  Value = adjustFixupValue(Fixup, Value);
+    Value = adjustFixupValue(Fixup, Value);
     return; // Doesn't change encoding.
   }
 
@@ -148,7 +154,7 @@ void CJGAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
   unsigned Offset = Fixup.getOffset();
 
   // If the location is not in memory
-  assert(Offset <= DataSize && "Invalid fixup offset!");
+  //assert(Offset <= DataSize && "Invalid fixup offset!");
 
   // For now we are assuming fixups are only for jump/call addresses
   // FIXME: The arch is currently addressed by words so convert address to words

@@ -1,9 +1,9 @@
 # Bugfixes
 1. `PUSH SR` - SR cannot be pushed, try to fix this
 2. `ADJCALLSTACKUP` & `ADJCALLSTACKDOWN` - Stack improperly increased/decreased
-3. `CALL (f)` - Fix this, should be without braces
+3. `CALL (f)` - Fix this, should be without braces [OK]
 4. Add `*`, `/`, `%` operator implementations - via function calls?
-5. `setcc` SDNode cannot be selected - fix it
+5. `setcc` SDNode cannot be selected - fix it [OK]
 
 # Tests
 1. Try creating .o files

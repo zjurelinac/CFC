@@ -476,11 +476,11 @@ endif()
 # This is primarily to support building smaller or faster project files.
 option(LLVM_INCLUDE_TOOLS "Generate build targets for the LLVM tools." ON)
 option(LLVM_BUILD_TOOLS
-  "Build the LLVM tools. If OFF, just generate build targets." ON)
+  "Build the LLVM tools. If OFF, just generate build targets." OFF)
 
 option(LLVM_INCLUDE_UTILS "Generate build targets for the LLVM utils." ON)
 option(LLVM_BUILD_UTILS
-  "Build LLVM utility binaries. If OFF, just generate build targets." ON)
+  "Build LLVM utility binaries. If OFF, just generate build targets." OFF)
 
 option(LLVM_INCLUDE_RUNTIMES "Generate build targets for the LLVM runtimes." ON)
 option(LLVM_BUILD_RUNTIMES
@@ -490,18 +490,18 @@ option(LLVM_BUILD_RUNTIME
   "Build the LLVM runtime libraries." ON)
 option(LLVM_BUILD_EXAMPLES
   "Build the LLVM example programs. If OFF, just generate build targets." OFF)
-option(LLVM_INCLUDE_EXAMPLES "Generate build targets for the LLVM examples" ON)
+option(LLVM_INCLUDE_EXAMPLES "Generate build targets for the LLVM examples" OFF)
 
 option(LLVM_BUILD_TESTS
   "Build LLVM unit tests. If OFF, just generate build targets." OFF)
-option(LLVM_INCLUDE_TESTS "Generate build targets for the LLVM unit tests." ON)
-option(LLVM_INCLUDE_GO_TESTS "Include the Go bindings tests in test build targets." ON)
+option(LLVM_INCLUDE_TESTS "Generate build targets for the LLVM unit tests." OFF)
+option(LLVM_INCLUDE_GO_TESTS "Include the Go bindings tests in test build targets." OFF)
 
 option (LLVM_BUILD_DOCS "Build the llvm documentation." OFF)
 option (LLVM_INCLUDE_DOCS "Generate build targets for llvm documentation." ON)
 option (LLVM_ENABLE_DOXYGEN "Use doxygen to generate llvm API documentation." OFF)
 option (LLVM_ENABLE_SPHINX "Use Sphinx to generate llvm documentation." OFF)
-option (LLVM_ENABLE_OCAMLDOC "Build OCaml bindings documentation." ON)
+option (LLVM_ENABLE_OCAMLDOC "Build OCaml bindings documentation." OFF)
 
 set(LLVM_INSTALL_DOXYGEN_HTML_DIR "share/doc/llvm/doxygen-html"
     CACHE STRING "Doxygen-generated HTML documentation install directory")

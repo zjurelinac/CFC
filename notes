@@ -1,0 +1,5 @@
+alterations to dag:
+    - MOVE 32bit address (fix it passing now)
+    - sext implementation
+    - zext implementation
+    - mul & div implement as br_cc

@@ -70,6 +70,7 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   case wasm64:         return "wasm64";
   case renderscript32: return "renderscript32";
   case renderscript64: return "renderscript64";
+  case cjg:            return "cjg";
   case frisc:          return "frisc";
   }
 
@@ -144,6 +145,8 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
 
   case riscv32:
   case riscv64:     return "riscv";
+
+  case cjg:         return "cjg";
 
   case frisc:       return "frisc";
   }
@@ -307,6 +310,8 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     .Case("wasm64", wasm64)
     .Case("renderscript32", renderscript32)
     .Case("renderscript64", renderscript64)
+    .Case("cjg", cjg)
+    .Case("frisc", frisc)
     .Default(UnknownArch);
 }
 
@@ -657,6 +662,7 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
   case Triple::wasm32:
   case Triple::wasm64:
   case Triple::xcore:
+  case Triple::cjg:
   case Triple::frisc:
     return Triple::ELF;
 
@@ -1197,6 +1203,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::shave:
   case llvm::Triple::wasm32:
   case llvm::Triple::renderscript32:
+  case llvm::Triple::cjg:
   case llvm::Triple::frisc:
     return 32;
 
@@ -1278,6 +1285,7 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::shave:
   case Triple::wasm32:
   case Triple::renderscript32:
+  case Triple::cjg:
   case Triple::frisc:
     // Already 32-bit.
     break;
@@ -1317,6 +1325,7 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::xcore:
   case Triple::sparcel:
   case Triple::shave:
+  case Triple::cjg:
   case Triple::frisc:
     T.setArch(UnknownArch);
     break;
@@ -1399,6 +1408,7 @@ Triple Triple::getBigEndianArchVariant() const {
   case Triple::xcore:
   case Triple::renderscript32:
   case Triple::renderscript64:
+  case Triple::cjg:
   case Triple::frisc:
 
   // ARM is intentionally unsupported here, changing the architecture would
@@ -1491,6 +1501,7 @@ bool Triple::isLittleEndian() const {
   case Triple::tcele:
   case Triple::renderscript32:
   case Triple::renderscript64:
+  case Triple::cjg:
   case Triple::frisc:
     return true;
   default:

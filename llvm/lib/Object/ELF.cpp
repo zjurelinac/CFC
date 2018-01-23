@@ -116,6 +116,13 @@ StringRef llvm::object::getELFRelocationTypeName(uint32_t Machine,
       break;
     }
     break;
+  case ELF::EM_CJG:
+    switch (Type) {
+#include "llvm/BinaryFormat/ELFRelocs/CJG.def"
+    default:
+      break;
+    }
+    break;
   case ELF::EM_FRISC:
     switch (Type) {
 #include "llvm/BinaryFormat/ELFRelocs/FRISC.def"

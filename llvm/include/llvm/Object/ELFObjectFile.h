@@ -967,6 +967,8 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
       return "ELF32-wasm";
     case ELF::EM_AMDGPU:
       return "ELF32-amdgpu";
+    case ELF::EM_CJG:
+      return "ELF32-cjg";
     case ELF::EM_FRISC:
       return "ELF32-frisc";
     default:
