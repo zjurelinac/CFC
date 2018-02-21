@@ -21,32 +21,32 @@ namespace llvm {
 /// FRISCMachineFunctionInfo - This class is derived from MachineFunction and
 /// contains private FRISC target-specific information for each MachineFunction.
 class FRISCMachineFunctionInfo : public MachineFunctionInfo {
-  virtual void anchor();
+    virtual void anchor();
 
-  /// CalleeSavedFrameSize - Size of the callee-saved register portion of the
-  /// stack frame in bytes.
-  unsigned CalleeSavedFrameSize;
+    /// CalleeSavedFrameSize - Size of the callee-saved register portion of the
+    /// stack frame in bytes.
+    unsigned CalleeSavedFrameSize;
 
-  /// ReturnAddrIndex - FrameIndex for return slot.
-  int ReturnAddrIndex;
+    /// ReturnAddrIndex - FrameIndex for return slot.
+    int ReturnAddrIndex;
 
-  /// VarArgsFrameIndex - FrameIndex for start of varargs area.
-  int VarArgsFrameIndex;
+    /// VarArgsFrameIndex - FrameIndex for start of varargs area.
+    int VarArgsFrameIndex;
 
 public:
-  FRISCMachineFunctionInfo() : CalleeSavedFrameSize(0) {}
+    FRISCMachineFunctionInfo() : CalleeSavedFrameSize(0) {}
 
-  explicit FRISCMachineFunctionInfo(MachineFunction &MF)
-    : CalleeSavedFrameSize(0), ReturnAddrIndex(0) {}
+    explicit FRISCMachineFunctionInfo(MachineFunction &MF)
+        : CalleeSavedFrameSize(0), ReturnAddrIndex(0) {}
 
-  unsigned getCalleeSavedFrameSize() const { return CalleeSavedFrameSize; }
-  void setCalleeSavedFrameSize(unsigned bytes) { CalleeSavedFrameSize = bytes; }
+    unsigned getCalleeSavedFrameSize() const { return CalleeSavedFrameSize; }
+    void setCalleeSavedFrameSize(unsigned bytes) { CalleeSavedFrameSize = bytes; }
 
-  int getRAIndex() const { return ReturnAddrIndex; }
-  void setRAIndex(int Index) { ReturnAddrIndex = Index; }
+    int getRAIndex() const { return ReturnAddrIndex; }
+    void setRAIndex(int Index) { ReturnAddrIndex = Index; }
 
-  int getVarArgsFrameIndex() const { return VarArgsFrameIndex;}
-  void setVarArgsFrameIndex(int Index) { VarArgsFrameIndex = Index; }
+    int getVarArgsFrameIndex() const { return VarArgsFrameIndex;}
+    void setVarArgsFrameIndex(int Index) { VarArgsFrameIndex = Index; }
 };
 
 } // End llvm namespace

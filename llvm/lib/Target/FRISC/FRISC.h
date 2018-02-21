@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains the entry points for global functions defined in the LLVM
-// FRISC back-end.
+// FRISC back-end, as well as definition of FRISC condition codes.
 //
 //===----------------------------------------------------------------------===//
 
@@ -43,8 +43,7 @@ namespace llvm {
 class TargetMachine;
 class FRISCTargetMachine;
 
-FunctionPass *createFRISCISelDag(FRISCTargetMachine &TM,
-                               CodeGenOpt::Level OptLevel);
+FunctionPass *createFRISCISelDag(FRISCTargetMachine &TM, CodeGenOpt::Level OptLevel);
 } // end namespace llvm;
 
 #endif

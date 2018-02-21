@@ -13,10 +13,10 @@
 using namespace llvm;
 
 Target &llvm::getTheFRISCTarget() {
-  static Target TheFRISCTarget;
-  return TheFRISCTarget;
+	static Target TheFRISCTarget;
+	return TheFRISCTarget;
 }
 
 extern "C" void LLVMInitializeFRISCTargetInfo() {
-  RegisterTarget<Triple::frisc> X(getTheFRISCTarget(), "frisc", "FRISC");
+	RegisterTarget<Triple::frisc> X(getTheFRISCTarget(), "frisc", "FRISC");
 }

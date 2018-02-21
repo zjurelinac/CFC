@@ -11,4 +11,4 @@
 
 using namespace llvm;
 
-void FRISCMachineFunctionInfo::anchor() { }
+void FRISCMachineFunctionInfo::anchor() {}

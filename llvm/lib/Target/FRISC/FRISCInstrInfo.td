@@ -82,11 +82,11 @@ let isCompare = 1 in {
     def SDIV_rr : FRISCPseudo<(outs MDPseudoR0:$dst),  (ins MDPseudoR0:$src1, MDPseudoR1:$src2), "# SDIV", [(set i32:$dst, (sdiv i32:$src1, i32:$src2)), (implicit SR)]>;
 }*/
 
-let usesCustomInserter = 1, Defs = [SR] in {
+/*let usesCustomInserter = 1, Defs = [SR] in {
     def MUL_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; MUL $dst, $src1, $src2", [(set i32:$dst, (mul i32:$src1, i32:$src2)), (implicit SR)]>;
     def SDIV_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; SDIV $dst, $src1, $src2", [(set i32:$dst, (sdiv i32:$src1, i32:$src2)), (implicit SR)]>;
     def UDIV_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; UDIV $dst, $src1, $src2", [(set i32:$dst, (udiv i32:$src1, i32:$src2)), (implicit SR)]>;
-}
+}*/
 
 // Memory operations
 

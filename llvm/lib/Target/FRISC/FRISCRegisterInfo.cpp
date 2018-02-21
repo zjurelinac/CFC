@@ -29,59 +29,56 @@ using namespace llvm;
 
 FRISCRegisterInfo::FRISCRegisterInfo() : FRISCGenRegisterInfo(FRISC::PC) {}
 
-const MCPhysReg *
-FRISCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+const MCPhysReg* FRISCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   return CC_Save_SaveList; // from tablegen
 }
 
 BitVector FRISCRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
-  BitVector Reserved(getNumRegs());
+    BitVector Reserved(getNumRegs());
 
-  Reserved.set(FRISC::SR); // status regsiter
-  Reserved.set(FRISC::PC); // program counter
+    Reserved.set(FRISC::SR); // status regsiter
+    Reserved.set(FRISC::PC); // program counter
 
-  return Reserved;
+    return Reserved;
 }
 
-const TargetRegisterClass *
-FRISCRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind) const {
-  return &FRISC::GPRRegClass;
+const TargetRegisterClass* FRISCRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind) const {
+    return &FRISC::GPRRegClass;
 }
 
-void FRISCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                          int SPAdj, unsigned FIOperandNum,
-                                          RegScavenger *RS) const {
-  // TODO: Look into this!
-  MachineInstr &MI = *II;
-  MachineBasicBlock &MBB = *MI.getParent();
-  const MachineFunction &MF = *MBB.getParent();
-  const MachineFrameInfo MFI = MF.getFrameInfo();
-  MachineOperand &FIOp = MI.getOperand(FIOperandNum);
-  unsigned FI = FIOp.getIndex();
+void FRISCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj, unsigned FIOperandNum,
+        RegScavenger *RS) const {
+  
+    // TODO: Look into this!
+    MachineInstr &MI = *II;
+    MachineBasicBlock &MBB = *MI.getParent();
+    const MachineFunction &MF = *MBB.getParent();
+    const MachineFrameInfo MFI = MF.getFrameInfo();
+    MachineOperand &FIOp = MI.getOperand(FIOperandNum);
+    unsigned FI = FIOp.getIndex();
 
-  // Determine if we can eliminate the index from this kind of instruction.
-  unsigned ImmOpIdx = 0;
-  switch (MI.getOpcode()) {
-    default:
-      llvm_unreachable("Instruction not supported");
-    case FRISC::LOAD_ri:
-    case FRISC::STORE_ri:
-    case FRISC::ADD_ri:
-      ImmOpIdx = FIOperandNum + 1;
-      break;
-}
+    // Determine if we can eliminate the index from this kind of instruction.
+    unsigned ImmOpIdx = 0;
+    switch (MI.getOpcode()) {
+        default:
+            llvm_unreachable("Instruction not supported");
+        case FRISC::LOAD_ri:
+        case FRISC::STORE_ri:
+        case FRISC::ADD_ri:
+            ImmOpIdx = FIOperandNum + 1;
+            break;
+    }
 
-  // FIXME: check the size of offset.
-  MachineOperand &ImmOp = MI.getOperand(ImmOpIdx);
-  int Offset = MFI.getObjectOffset(FI) + MFI.getStackSize() + ImmOp.getImm();
-  if (Offset % 4) {
-    llvm_unreachable("Offset must be aligned to 4 bytes because memory is "
-                     "32-bit word addressable only");
-  }
-  FIOp.ChangeToRegister(FRISC::SP, false);
-  ImmOp.setImm(Offset);
+    // FIXME: check the size of offset.
+    MachineOperand &ImmOp = MI.getOperand(ImmOpIdx);
+    int Offset = MFI.getObjectOffset(FI) + MFI.getStackSize() + ImmOp.getImm();
+    if (Offset % 4)
+        llvm_unreachable("Offset must be aligned to 4 bytes because memory is 32-bit word addressable only");
+  
+    FIOp.ChangeToRegister(FRISC::SP, false);
+    ImmOp.setImm(Offset);
 }
 
 unsigned FRISCRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  return FRISC::SP;
+    return FRISC::SP;
 }

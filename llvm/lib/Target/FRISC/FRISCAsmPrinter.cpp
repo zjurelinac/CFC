@@ -52,16 +52,12 @@ namespace {
     FRISCMCInstLower MCInstLowering;
 
   public:
-    explicit FRISCAsmPrinter(TargetMachine &TM,
-                           std::unique_ptr<MCStreamer> Streamer)
-        : AsmPrinter(TM, std::move(Streamer)),
-          MCInstLowering(OutContext, *this) {}
+    explicit FRISCAsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+        : AsmPrinter(TM, std::move(Streamer)), MCInstLowering(OutContext, *this) {}
 
-    virtual StringRef getPassName() const {
-        return StringRef("FRISC Assembly Printer");
-    }
+    virtual StringRef getPassName() const
+        { return StringRef("FRISC Assembly Printer"); }
 
-//    void EmitBasicBlockStart(const MachineBasicBlock &MBB) const;
     void EmitFunctionEntryLabel();
     void EmitInstruction(const MachineInstr *MI);
     void EmitFunctionBodyStart();
@@ -70,21 +66,15 @@ namespace {
 
 void FRISCAsmPrinter::EmitFunctionBodyStart() {}
 
-void FRISCAsmPrinter::EmitFunctionEntryLabel() {
-  OutStreamer->EmitLabel(CurrentFnSym);
-}
+void FRISCAsmPrinter::EmitFunctionEntryLabel() { OutStreamer->EmitLabel(CurrentFnSym); }
 
 void FRISCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
-  MCInst TmpInst;
-  MCInstLowering.Lower(MI, TmpInst);
-  EmitToStreamer(*OutStreamer, TmpInst);
+    MCInst TmpInst;
+    MCInstLowering.Lower(MI, TmpInst);
+    EmitToStreamer(*OutStreamer, TmpInst);
 }
-
-//void FRISCAsmPrinter::EmitBasicBlockStart(const MachineBasicBlock &MBB) const {
-//
-//}
 
 // Force static initialization.
 extern "C" void LLVMInitializeFRISCAsmPrinter() {
-  RegisterAsmPrinter<FRISCAsmPrinter> X(getTheFRISCTarget());
+    RegisterAsmPrinter<FRISCAsmPrinter> X(getTheFRISCTarget());
 }

@@ -23,28 +23,22 @@
 namespace llvm {
 
 class FRISCTargetMachine : public LLVMTargetMachine {
-  FRISCSubtarget Subtarget;
-  std::unique_ptr<TargetLoweringObjectFile> TLOF;
+    FRISCSubtarget Subtarget;
+    std::unique_ptr<TargetLoweringObjectFile> TLOF;
 
 public:
-  FRISCTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
-                     StringRef FS, const TargetOptions &Options,
-                     Optional<Reloc::Model> RM, CodeModel::Model CM,
-                     CodeGenOpt::Level OL);
+    FRISCTargetMachine(const Target &T, const Triple &TT, StringRef CPU, StringRef FS,
+        const TargetOptions &Options, Optional<Reloc::Model> RM, CodeModel::Model CM, CodeGenOpt::Level OL);
 
 
-  // Pass Pipeline Configuration
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
-  
-  TargetLoweringObjectFile *getObjFileLowering() const override {
-    return TLOF.get();
-  }
+    // Pass Pipeline Configuration
+    virtual TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+      
+    TargetLoweringObjectFile *getObjFileLowering() const override
+        { return TLOF.get(); }
 
-  virtual const TargetSubtargetInfo *
-  getSubtargetImpl(const Function &) const override {
-    return &Subtarget;
-  }
-
+    virtual const TargetSubtargetInfo* getSubtargetImpl(const Function &) const override
+        { return &Subtarget; }
 };
 
 } // end namespace llvm

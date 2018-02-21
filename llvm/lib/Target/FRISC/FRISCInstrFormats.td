@@ -16,7 +16,7 @@ def OPC_SHR    : FRISCOpcode<0b01011>;
 def OPC_ASHR   : FRISCOpcode<0b01100>;
 def OPC_CMP    : FRISCOpcode<0b01101>;
 // Extras
-def OPC_MUL    : FRISCOpcode<0b01110>;
+// def OPC_MUL    : FRISCOpcode<0b01110>;
 
 def OPC_POP    : FRISCOpcode<0b10000>;
 def OPC_PUSH   : FRISCOpcode<0b10001>;
