@@ -75,14 +75,25 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM, const FRI
     setOperationAction(ISD::GlobalAddress,    MVT::i32,     Custom);
     setOperationAction(ISD::ExternalSymbol,   MVT::i32,     Custom);
 
-    // TODO: Do stuff to fix it
-
+    // Promote loading of boolean values (i1) to loading of larger types (i8, i16 or i32)
     for (MVT VT : MVT::integer_valuetypes()) {
         for (auto N : {ISD::EXTLOAD, ISD::SEXTLOAD, ISD::ZEXTLOAD}) {
             setLoadExtAction(N, VT, MVT::i1, Promote);
         }
     }
 
+    // Expand unsupported sign-extension operations
+    // setOperationAction(ISD::SIGN_EXTEND, MVT::i8, Custom);
+    // setOperationAction(ISD::SIGN_EXTEND, MVT::i16, Custom);
+
+    setLoadExtAction(ISD::SEXTLOAD, MVT::i16, MVT::i8, Expand);
+    setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i8, Expand);
+    setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i16, Expand);
+
+    setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Expand);
+    setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
+
+    // Expand unsupported DIV/REM operations
     setOperationAction(ISD::UREM, MVT::i32, Expand);
     setOperationAction(ISD::SREM, MVT::i32, Expand);
     setOperationAction(ISD::UDIVREM, MVT::i32, Expand);
@@ -209,7 +220,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC, ISD::CondC
             TCC = FRISCCC::COND_Z;  // == COND_EQ
             if (LHS.getOpcode() == ISD::Constant) std::swap(LHS, RHS);  // Make RHS a constant for opt
             break;
-        case ISD::SETNE:  
+        case ISD::SETNE:
             TCC = FRISCCC::COND_NZ;  // == COND_NE
             if (LHS.getOpcode() == ISD::Constant) std::swap(LHS, RHS);  // Make RHS a constant for opt
             break;
@@ -422,7 +433,7 @@ MachineBasicBlock * FRISCTargetLowering::EmitInstrWithCustomInserter(MachineInst
 
         MI.eraseFromParent();  // The pseudo instruction is gone now.
     }
-    
+
     return BB;
 }
 

@@ -41,13 +41,11 @@ def FRISCbrcc    : SDNode<"FRISCISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain, SDNPI
 def FRISCSelectCC: SDNode<"FRISCISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;
 def FRISCWrapper : SDNode<"FRISCISD::Wrapper", SDT_FRISCWrapper>;
 def FRISCcall    : SDNode<"FRISCISD::CALL", SDT_FRISCCall,
-                      [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue, SDNPVariadic]>;
-def FRISCcallseq_start :
-                 SDNode<"ISD::CALLSEQ_START", SDT_FRISCCallSeqStart,
-                        [SDNPHasChain, SDNPOutGlue]>;
-def FRISCcallseq_end :
-                 SDNode<"ISD::CALLSEQ_END", SDT_FRISCCallSeqEnd,
-                        [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
+                          [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue, SDNPVariadic]>;
+def FRISCcallseq_start : SDNode<"ISD::CALLSEQ_START", SDT_FRISCCallSeqStart,
+                                [SDNPHasChain, SDNPOutGlue]>;
+def FRISCcallseq_end   : SDNode<"ISD::CALLSEQ_END", SDT_FRISCCallSeqEnd,
+                                [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
 //===----------------------------------------------------------------------===//
 // Instructions
@@ -82,25 +80,34 @@ let isCompare = 1 in {
     def SDIV_rr : FRISCPseudo<(outs MDPseudoR0:$dst),  (ins MDPseudoR0:$src1, MDPseudoR1:$src2), "# SDIV", [(set i32:$dst, (sdiv i32:$src1, i32:$src2)), (implicit SR)]>;
 }*/
 
-/*let usesCustomInserter = 1, Defs = [SR] in {
-    def MUL_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; MUL $dst, $src1, $src2", [(set i32:$dst, (mul i32:$src1, i32:$src2)), (implicit SR)]>;
-    def SDIV_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; SDIV $dst, $src1, $src2", [(set i32:$dst, (sdiv i32:$src1, i32:$src2)), (implicit SR)]>;
-    def UDIV_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; UDIV $dst, $src1, $src2", [(set i32:$dst, (udiv i32:$src1, i32:$src2)), (implicit SR)]>;
-}*/
+let Defs = [SR] in {
+    def MUL_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; MUL $dst, $src1, $src2",
+                             [(set i32:$dst, (mul i32:$src1, i32:$src2)), (implicit SR)]>;
+    def SDIV_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; SDIV $dst, $src1, $src2",
+                             [(set i32:$dst, (sdiv i32:$src1, i32:$src2)), (implicit SR)]>;
+    def UDIV_rr : FRISCPseudo<(outs GPR:$dst), (ins GPR:$src1, GPR:$src2), "; UDIV $dst, $src1, $src2",
+                             [(set i32:$dst, (udiv i32:$src1, i32:$src2)), (implicit SR)]>;
+}
 
 // Memory operations
 
 let mayLoad = 1 in {
-  def LOADB_ri : MemInst_ri<OPC_LOAD, "LOADB", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (zextloadi8 addr:$addr))]>;
-  def LOADH_ri : MemInst_ri<OPC_LOAD, "LOADH", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (zextloadi16 addr:$addr))]>;
-  def LOAD_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr), [(set GPR:$dst, (load addr:$addr))]>;
+  def LOADB_ri : MemInst_ri<OPC_LOAD, "LOADB", (outs GPR:$dst), (ins MemSrc:$addr),
+                            [(set GPR:$dst, (zextloadi8 addr:$addr))]>;
+  def LOADH_ri : MemInst_ri<OPC_LOAD, "LOADH", (outs GPR:$dst), (ins MemSrc:$addr),
+                            [(set GPR:$dst, (zextloadi16 addr:$addr))]>;
+  def LOAD_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr),
+                           [(set GPR:$dst, (load addr:$addr))]>;
   //def LOAD_i  : MemInst_i<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins Imm20:$addr), [(set GPR:$dst, (load addr:$addr))]>;
 }
 
 let mayStore = 1 in {
-  def STOREB_ri: MemInst_ri<OPC_STORE, "STOREB", (outs), (ins MemSrc:$addr, GPR:$dst), [(truncstorei8 GPR:$dst, addr:$addr)]>;
-  def STOREH_ri: MemInst_ri<OPC_STORE, "STOREH", (outs), (ins MemSrc:$addr, GPR:$dst), [(truncstorei16 GPR:$dst, addr:$addr)]>;
-  def STORE_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst), [(store GPR:$dst, addr:$addr)]>;
+  def STOREB_ri: MemInst_ri<OPC_STORE, "STOREB", (outs), (ins MemSrc:$addr, GPR:$dst),
+                            [(truncstorei8 GPR:$dst, addr:$addr)]>;
+  def STOREH_ri: MemInst_ri<OPC_STORE, "STOREH", (outs), (ins MemSrc:$addr, GPR:$dst),
+                            [(truncstorei16 GPR:$dst, addr:$addr)]>;
+  def STORE_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst),
+                           [(store GPR:$dst, addr:$addr)]>;
   //def STORE_i : MemInst_i<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
 }
 
