@@ -93,12 +93,11 @@ let Defs = [SR] in {
 
 let mayLoad = 1 in {
   def LOADB_ri : MemInst_ri<OPC_LOAD, "LOADB", (outs GPR:$dst), (ins MemSrc:$addr),
-                            [(set GPR:$dst, (zextloadi8 addr:$addr))]>;
+                            [(set GPR:$dst, (extloadi8 addr:$addr))]>;
   def LOADH_ri : MemInst_ri<OPC_LOAD, "LOADH", (outs GPR:$dst), (ins MemSrc:$addr),
-                            [(set GPR:$dst, (zextloadi16 addr:$addr))]>;
+                            [(set GPR:$dst, (extloadi16 addr:$addr))]>;
   def LOAD_ri : MemInst_ri<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins MemSrc:$addr),
                            [(set GPR:$dst, (load addr:$addr))]>;
-  //def LOAD_i  : MemInst_i<OPC_LOAD, "LOAD", (outs GPR:$dst), (ins Imm20:$addr), [(set GPR:$dst, (load addr:$addr))]>;
 }
 
 let mayStore = 1 in {
@@ -108,7 +107,6 @@ let mayStore = 1 in {
                             [(truncstorei16 GPR:$dst, addr:$addr)]>;
   def STORE_ri: MemInst_ri<OPC_STORE, "STORE", (outs), (ins MemSrc:$addr, GPR:$dst),
                            [(store GPR:$dst, addr:$addr)]>;
-  //def STORE_i : MemInst_i<OPC_STORE, "STORE", (outs), (ins GPR:$dst, Imm20:$addr), [(store GPR:$dst, addr:$addr)]>;
 }
 
 

@@ -1,88 +1,117 @@
 	.text
 	.file	"string.c"
-	.globl	_Z6strlenPKc            // -- Begin function _Z6strlenPKc
-	.type	_Z6strlenPKc,@function
-_Z6strlenPKc:                           // @_Z6strlenPKc
-// BB#0:
+	.globl	strlen                  ; -- Begin function strlen
+	.type	strlen,@function
+strlen:                                 ; @strlen
+; BB#0:
 	PUSH	SR
-	MOVE	0, R2
-	MOVE	R2, R1
-BB0_1:                                  // =>This Inner Loop Header: Depth=1
-	ADD	R3, R0, R1
-	ADD	R1, R1, 1
-	LOADB	R3, (R3)
-	CMP	R3, R2
-	JP_NE	BB0_1
-// BB#2:
-	MOVE	R1, R0
-	POP	SR
-	RET
-.Lfunc_end0:
-	.size	_Z6strlenPKc, .Lfunc_end0-_Z6strlenPKc
-                                        // -- End function
-	.globl	_Z6strcpyPcPKc          // -- Begin function _Z6strcpyPcPKc
-	.type	_Z6strcpyPcPKc,@function
-_Z6strcpyPcPKc:                         // @_Z6strcpyPcPKc
-// BB#0:
-	PUSH	R4
-	PUSH	SR
-	LOADB	R3, (R1)
-	MOVE	0, R2
-	CMP	R3, R2
-	JP_EQ	BB1_3
-// BB#1:
-	ADD	R1, R1, 1
-BB1_2:                                  // =>This Inner Loop Header: Depth=1
-	STOREB	R3, (R0)
-	ADD	R4, R1, 1
-	ADD	R0, R0, 1
-	LOADB	R3, (R1)
 	MOVE	0, R1
-	CMP	R3, R1
-	MOVE	R4, R1
-	JP_NE	BB1_2
-BB1_3:
-	STOREB	R2, (R0)
+	STORE	R1, (SP)
+	STORE	R0, (SP+4)
+.LBB0_1:                                ; =>This Inner Loop Header: Depth=1
+	LOAD	R0, (SP)
+	ADD	R2, R0, 1
+	STORE	R2, (SP)
+	LOAD	R2, (SP+4)
+	ADD	R0, R2, R0
+	LOADB	R0, (R0)
+	SHL	R0, R0, 24
+	ASHR	R0, R0, 24
+	CMP	R0, R1
+	JP_NE	.LBB0_1
+; BB#2:
+	LOAD	R0, (SP)
 	POP	SR
-	POP	R4
 	RET
-.Lfunc_end1:
-	.size	_Z6strcpyPcPKc, .Lfunc_end1-_Z6strcpyPcPKc
-                                        // -- End function
-	.globl	_Z7strncpyPcPKci        // -- Begin function _Z7strncpyPcPKci
-	.type	_Z7strncpyPcPKci,@function
-_Z7strncpyPcPKci:                       // @_Z7strncpyPcPKci
-// BB#0:
-	PUSH	R6
-	PUSH	R5
-	PUSH	R4
+Lfunc_end0:
+	.size	strlen, Lfunc_end0-strlen
+                                        ; -- End function
+	.globl	strcpy                  ; -- Begin function strcpy
+	.type	strcpy,@function
+strcpy:                                 ; @strcpy
+; BB#0:
 	PUSH	SR
-	MOVE	1, R3
-	CMP	R2, R3
-	JP_SLT	BB2_4
-// BB#1:
-	MOVE	0, R3
-	MOVE	R3, R4
-BB2_2:                                  // =>This Inner Loop Header: Depth=1
-	ADD	R5, R1, R4
-	LOADB	R5, (R5)
-	CMP	R5, R3
-	JP_EQ	BB2_4
-// BB#3:                                //   in Loop: Header=BB2_2 Depth=1
-	ADD	R6, R0, R4
-	STOREB	R5, (R6)
-	ADD	R4, R4, 1
-	CMP	R4, R2
-	JP_SLT	BB2_2
-BB2_4:
+	STORE	R1, (SP)
+	STORE	R0, (SP+4)
+	JP	.LBB1_1
+.LBB1_2:                                ;   in Loop: Header=BB1_1 Depth=1
+	LOAD	R0, (SP)
+	ADD	R1, R0, 1
+	STORE	R1, (SP)
+	LOADB	R0, (R0)
+	LOAD	R1, (SP+4)
+	ADD	R2, R1, 1
+	STORE	R2, (SP+4)
+	STOREB	R0, (R1)
+.LBB1_1:                                ; =>This Inner Loop Header: Depth=1
+	LOAD	R0, (SP)
+	LOADB	R0, (R0)
+	SHL	R0, R0, 24
+	ASHR	R1, R0, 24
+	MOVE	0, R0
+	CMP	R1, R0
+	JP_NE	.LBB1_2
+; BB#3:
+	LOAD	R1, (SP+4)
+	STOREB	R0, (R1)
 	POP	SR
-	POP	R4
-	POP	R5
-	POP	R6
 	RET
-.Lfunc_end2:
-	.size	_Z7strncpyPcPKci, .Lfunc_end2-_Z7strncpyPcPKci
-                                        // -- End function
+Lfunc_end1:
+	.size	strcpy, Lfunc_end1-strcpy
+                                        ; -- End function
+	.globl	strncpy                 ; -- Begin function strncpy
+	.type	strncpy,@function
+strncpy:                                ; @strncpy
+; BB#0:
+	PUSH	SR
+	STORE	R1, (SP+8)
+	STORE	R0, (SP+12)
+	STORE	R2, (SP+4)
+	MOVE	0, R0
+	STORE	R0, (SP)
+	JP	.LBB2_1
+.LBB2_5:                                ;   in Loop: Header=BB2_1 Depth=1
+	LOAD	R1, (SP+8)
+	LOADB	R1, (R1)
+	LOAD	R2, (SP+12)
+	STOREB	R1, (R2)
+	LOAD	R1, (SP)
+	ADD	R1, R1, 1
+	STORE	R1, (SP)
+	LOAD	R1, (SP+8)
+	ADD	R1, R1, 1
+	STORE	R1, (SP+8)
+	LOAD	R1, (SP+12)
+	ADD	R1, R1, 1
+	STORE	R1, (SP+12)
+.LBB2_1:                                ; =>This Inner Loop Header: Depth=1
+	LOAD	R1, (SP+4)
+	LOAD	R2, (SP)
+	CMP	R2, R1
+	MOVE	R0, R1
+	JP_SGE	.LBB2_4
+; BB#2:                                 ;   in Loop: Header=BB2_1 Depth=1
+	LOAD	R1, (SP+8)
+	LOADB	R1, (R1)
+	SHL	R1, R1, 24
+	ASHR	R3, R1, 24
+	MOVE	0, R2
+	MOVE	1, R1
+	CMP	R3, R2
+	JP_NE	.LBB2_4
+; BB#3:                                 ;   in Loop: Header=BB2_1 Depth=1
+	MOVE	R2, R1
+.LBB2_4:                                ;   in Loop: Header=BB2_1 Depth=1
+	AND	R1, R1, 1
+	MOVE	0, R2
+	CMP	R1, R2
+	JP_NE	.LBB2_5
+; BB#6:
+	POP	SR
+	RET
+Lfunc_end2:
+	.size	strncpy, Lfunc_end2-strncpy
+                                        ; -- End function
 
 	.ident	"clang version 4.0.0-1ubuntu1~16.04.2 (tags/RELEASE_400/rc1)"
 	.section	".note.GNU-stack","",@progbits

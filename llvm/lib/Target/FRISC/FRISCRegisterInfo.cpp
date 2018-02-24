@@ -48,7 +48,7 @@ const TargetRegisterClass* FRISCRegisterInfo::getPointerRegClass(const MachineFu
 
 void FRISCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj, unsigned FIOperandNum,
         RegScavenger *RS) const {
-  
+
     // TODO: Look into this!
     MachineInstr &MI = *II;
     MachineBasicBlock &MBB = *MI.getParent();
@@ -62,7 +62,11 @@ void FRISCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int 
     switch (MI.getOpcode()) {
         default:
             llvm_unreachable("Instruction not supported");
+        case FRISC::LOADB_ri:
+        case FRISC::LOADH_ri:
         case FRISC::LOAD_ri:
+        case FRISC::STOREB_ri:
+        case FRISC::STOREH_ri:
         case FRISC::STORE_ri:
         case FRISC::ADD_ri:
             ImmOpIdx = FIOperandNum + 1;
@@ -74,7 +78,7 @@ void FRISCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int 
     int Offset = MFI.getObjectOffset(FI) + MFI.getStackSize() + ImmOp.getImm();
     if (Offset % 4)
         llvm_unreachable("Offset must be aligned to 4 bytes because memory is 32-bit word addressable only");
-  
+
     FIOp.ChangeToRegister(FRISC::SP, false);
     ImmOp.setImm(Offset);
 }

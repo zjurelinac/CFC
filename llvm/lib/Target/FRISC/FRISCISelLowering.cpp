@@ -83,15 +83,22 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM, const FRI
     }
 
     // Expand unsupported sign-extension operations
-    // setOperationAction(ISD::SIGN_EXTEND, MVT::i8, Custom);
-    // setOperationAction(ISD::SIGN_EXTEND, MVT::i16, Custom);
+    setLoadExtAction(ISD::ZEXTLOAD, MVT::i16, MVT::i8, Expand);
+    setLoadExtAction(ISD::ZEXTLOAD, MVT::i32, MVT::i8, Expand);
+    setLoadExtAction(ISD::ZEXTLOAD, MVT::i32, MVT::i16, Expand);
 
     setLoadExtAction(ISD::SEXTLOAD, MVT::i16, MVT::i8, Expand);
     setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i8, Expand);
     setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i16, Expand);
 
-    setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Expand);
-    setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
+    setOperationAction(ISD::SIGN_EXTEND, MVT::i8, Expand);          // Unnecessary?
+    setOperationAction(ISD::SIGN_EXTEND, MVT::i16, Expand);         // Unnecessary?
+
+    setOperationAction(ISD::ZERO_EXTEND, MVT::i8, Expand);          // Unnecessary?
+    setOperationAction(ISD::ZERO_EXTEND, MVT::i16, Expand);         // Unnecessary?
+
+    setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Expand);    // Unnecessary?
+    setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);   // Unnecessary?
 
     // Expand unsupported DIV/REM operations
     setOperationAction(ISD::UREM, MVT::i32, Expand);
@@ -145,15 +152,14 @@ SDValue FRISCTargetLowering::LowerFormalArguments(SDValue Chain, CallingConv::ID
             // Arguments passed in registers
             EVT RegVT = VA.getLocVT();
             switch (RegVT.getSimpleVT().SimpleTy) {
-                case MVT::i32:
-                    const unsigned VReg =
-                    RegInfo.createVirtualRegister(&FRISC::GPRRegClass);
+                case MVT::i32: {
+                    const unsigned VReg = RegInfo.createVirtualRegister(&FRISC::GPRRegClass);
                     RegInfo.addLiveIn(VA.getLocReg(), VReg);
                     SDValue ArgIn = DAG.getCopyFromReg(Chain, DL, VReg, RegVT);
 
                     InVals.push_back(ArgIn);
                     break;
-                default:
+                } default:
                     DEBUG(dbgs() << "LowerFormalArguments Unhandled argument type: " << RegVT.getEVTString() << "\n");
                     llvm_unreachable("unhandled argument type");
             }

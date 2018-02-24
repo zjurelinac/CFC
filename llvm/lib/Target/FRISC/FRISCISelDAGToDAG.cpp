@@ -58,7 +58,7 @@ void FRISCDAGToDAGISel::Select(SDNode *Node) {
     // Few custom selection stuff.
     switch (Node->getOpcode()) {
         default: break;
-        case ISD::FrameIndex:
+        case ISD::FrameIndex: {
             assert(Node->getValueType(0) == MVT::i32);
             int FI = cast<FrameIndexSDNode>(Node)->getIndex();
             SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i32);
@@ -71,11 +71,11 @@ void FRISCDAGToDAGISel::Select(SDNode *Node) {
                     CurDAG->getTargetConstant(0, dl, MVT::i32)));
 
             return;
-        case ISD::SIGN_EXTEND:
+        }/* case ISD::SIGN_EXTEND: {
             DEBUG(errs() << "== Got SIGN_EXTEND"; Node->dump(CurDAG); errs() << "\n");
 
             return;
-
+        }*/
         /*case ISD::SIGN_EXTEND_INREG:
             return;*/
     }

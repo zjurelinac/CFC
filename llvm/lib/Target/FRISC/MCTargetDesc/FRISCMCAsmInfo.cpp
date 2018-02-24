@@ -30,7 +30,7 @@ FRISCMCAsmInfo::FRISCMCAsmInfo(const Triple &TT) {
 	Data16bitsDirective = "\tDH\t"; 		// Define 16-bit data (halfword)
 	Data32bitsDirective = "\tDW\t"; 		// Define 32-bit data (word)
 	Data64bitsDirective = "\tDD\t"; 		// Define 64-bit data (doubleword)
-	// GlobalDirective = "\tDG\t"; 			// Define a global symbol 
+	// GlobalDirective = "\tDG\t"; 			// Define a global symbol
 	// HasFunctionAlignment = false; 		// ?
 	// HasDotTypeDotSizeDirective = false;	// ?
 	// HasSingleParameterDotFile = false; 	// ?

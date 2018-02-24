@@ -5,8 +5,8 @@ import os
 import subprocess
 
 
-CLANG = 'clang++-4.0'
-LLC = '../llvm-build/bin/llc'
+CLANG = 'clang-4.0'
+LLC = '../builddir/bin/llc'
 VERSION = '0.1.0'
 
 
