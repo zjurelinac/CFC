@@ -223,12 +223,12 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC, ISD::CondC
             TCC = FRISCCC::COND_U;
             break;
         case ISD::SETEQ:
-            TCC = FRISCCC::COND_Z;  // == COND_EQ
-            if (LHS.getOpcode() == ISD::Constant) std::swap(LHS, RHS);  // Make RHS a constant for opt
+            TCC = FRISCCC::COND_EQ;
+            if (LHS.getOpcode() == ISD::Constant) std::swap(LHS, RHS);  // Make RHS a constant
             break;
         case ISD::SETNE:
-            TCC = FRISCCC::COND_NZ;  // == COND_NE
-            if (LHS.getOpcode() == ISD::Constant) std::swap(LHS, RHS);  // Make RHS a constant for opt
+            TCC = FRISCCC::COND_NE;
+            if (LHS.getOpcode() == ISD::Constant) std::swap(LHS, RHS);  // Make RHS a constant
             break;
         case ISD::SETULE:
             if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
@@ -240,35 +240,33 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC, ISD::CondC
             TCC = FRISCCC::COND_ULE;
             break;
         case ISD::SETUGE:
-            // Turn lhs u>= rhs with lhs constant into rhs u< lhs+1, this allows us to
-            // fold constant into instruction.
+            // Turn lhs u>= rhs with lhs constant into rhs u< lhs+1
             if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
                 LHS = RHS;
                 RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
-                TCC = FRISCCC::COND_NC; // aka COND_NC or COND_ULT
+                TCC = FRISCCC::COND_ULT;
                 break;
             }
-            TCC = FRISCCC::COND_C;    // aka COND_C or COND_UGE
+            TCC = FRISCCC::COND_UGE;
             break;
         case ISD::SETUGT:
             if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
                 LHS = RHS;
                 RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
-                TCC = FRISCCC::COND_ULE;    // aka COND_ULE
+                TCC = FRISCCC::COND_ULE;
                 break;
             }
-            TCC = FRISCCC::COND_UGT;    // aka COND_UGT
+            TCC = FRISCCC::COND_UGT;
             break;
         case ISD::SETULT:
-            // Turn lhs u< rhs with lhs constant into rhs u>= lhs+1, this allows us to
-            // fold constant into instruction.
+            // Turn lhs u< rhs with lhs constant into rhs u>= lhs+1
             if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
                 LHS = RHS;
                 RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
-                TCC = FRISCCC::COND_C;    // aka COND_C or COND_UGE
+                TCC = FRISCCC::COND_UGE;
                 break;
             }
-            TCC = FRISCCC::COND_NC;    // aka COND_NC or COND_ULT
+            TCC = FRISCCC::COND_ULT;
             break;
         case ISD::SETLE:
             if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
@@ -280,8 +278,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC, ISD::CondC
             TCC = FRISCCC::COND_SLE;
             break;
         case ISD::SETGE:
-            // Turn lhs >= rhs with lhs constant into rhs < lhs+1, this allows us to
-            // fold constant into instruction.
+            // Turn lhs >= rhs with lhs constant into rhs < lhs+1
             if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
                 LHS = RHS;
                 RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
@@ -300,8 +297,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC, ISD::CondC
             TCC = FRISCCC::COND_SGT;
             break;
         case ISD::SETLT:
-            // Turn lhs < rhs with lhs constant into rhs >= lhs+1, this allows us to
-            // fold constant into instruction.
+            // Turn lhs < rhs with lhs constant into rhs >= lhs+1
             if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
                 LHS = RHS;
                 RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
