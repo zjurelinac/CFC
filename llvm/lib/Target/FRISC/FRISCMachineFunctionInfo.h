@@ -20,6 +20,7 @@ namespace llvm {
 
 /// FRISCMachineFunctionInfo - This class is derived from MachineFunction and
 /// contains private FRISC target-specific information for each MachineFunction.
+/// TODO: Rethink this through!
 class FRISCMachineFunctionInfo : public MachineFunctionInfo {
     virtual void anchor();
 

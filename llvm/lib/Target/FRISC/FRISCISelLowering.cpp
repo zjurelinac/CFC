@@ -38,6 +38,7 @@ using namespace llvm;
 const char *FRISCTargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch ((FRISCISD::NodeType)Opcode) {
     case FRISCISD::FIRST_NUMBER:            break;
+    // case FRISCISD::MOVEi32:                 return "FRISCISD::MOVEi32";
     case FRISCISD::CMP:                     return "FRISCISD::CMP";
     case FRISCISD::RET_FLAG:                return "FRISCISD::RET_FLAG";
     case FRISCISD::BR_CC:                   return "FRISCISD::BR_CC";
@@ -53,8 +54,6 @@ FRISCTargetLowering::FRISCTargetLowering(const FRISCTargetMachine &TM, const FRI
 
     // Set up the register classes.
     addRegisterClass(MVT::i32, &FRISC::GPRRegClass);
-    // addRegisterClass(MVT::i32, &FRISC::MDPseudoR0RegClass);
-    // addRegisterClass(MVT::i32, &FRISC::MDPseudoR1RegClass);
 
     // Compute derived properties from the register classes
     computeRegisterProperties(STI.getRegisterInfo());
@@ -569,9 +568,9 @@ static void AnalyzeRetResult(CCState &State, const SmallVectorImpl<ISD::InputArg
     State.AnalyzeCallResult(Ins, RetCC_FRISC);
 }
 
-static void AnalyzeRetResult(CCState &State, const SmallVectorImpl<ISD::OutputArg> &Outs) {
+/*static void AnalyzeRetResult(CCState &State, const SmallVectorImpl<ISD::OutputArg> &Outs) {
     State.AnalyzeReturn(Outs, RetCC_FRISC);
-}
+}*/
 
 template<typename ArgT>
 static void AnalyzeReturnValues(CCState &State, SmallVectorImpl<CCValAssign> &RVLocs, const SmallVectorImpl<ArgT> &Args) {

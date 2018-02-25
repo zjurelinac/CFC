@@ -17,15 +17,16 @@ class FRISCReg<bits<16> Enc, string n, list<string> altNames = []> : Register<n,
 }
 
 // CPU registers
-foreach i = 0-6 in {
+foreach i = 0-5 in {
     def R#i : FRISCReg<i, "R" ## i>;
 }
 
+def FP : FRISCReg<6, "FP", ["R6"]>;
 def SP : FRISCReg<7, "SP", ["R7"]>;
 def SR : FRISCReg<8, "SR">;
 def PC : FRISCReg<9, "PC">;
 
-def GPR : RegisterClass<"FRISC", [i32], 32, (add (sequence "R%u", 0, 6), SP)>;
+def GPR : RegisterClass<"FRISC", [i32], 32, (add (sequence "R%u", 0, 5), FP, SP)>;
 
 def SRClass : RegisterClass<"FRISC", [i32], 32, (add SR)>;
 def PCClass : RegisterClass<"FRISC", [i32], 32, (add PC)>;

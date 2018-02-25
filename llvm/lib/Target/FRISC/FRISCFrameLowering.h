@@ -23,8 +23,10 @@ class FRISCFrameLowering : public TargetFrameLowering {
 public:
     FRISCFrameLowering(const FRISCSubtarget &STI);
 
-    /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
-    /// the function.
+    void adjustSP(MachineFunction &MF, MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI, int Amount) const;
+    uint64_t computeStackSize(MachineFunction &MF) const;
+
+    // emitProlog/emitEpilog - These methods insert prolog and epilog code into the function.
     void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
     void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
@@ -32,7 +34,7 @@ public:
         MachineBasicBlock &MBB,MachineBasicBlock::iterator I) const override;
 
     bool spillCalleeSavedRegisters(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
-    const std::vector<CalleeSavedInfo> &CSI, const TargetRegisterInfo *TRI) const override;
+        const std::vector<CalleeSavedInfo> &CSI, const TargetRegisterInfo *TRI) const override;
 
     bool restoreCalleeSavedRegisters(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
         const std::vector<CalleeSavedInfo> &CSI, const TargetRegisterInfo *TRI) const override;

@@ -36,4 +36,4 @@ def CC_FRISC : CallingConv<[
     CCIfType<[i32], CCAssignToStack<4, 4>>
   ]>;
 
-def CC_Save : CalleeSavedRegs<(add SR, PC, SP, R4, R5, R6)>;
+def CC_Save : CalleeSavedRegs<(add SR, PC, FP, SP, R4, R5)>;

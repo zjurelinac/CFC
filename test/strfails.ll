@@ -3,184 +3,111 @@ source_filename = "strfails.c"
 target datalayout = "e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128"
 target triple = "i386-pc-linux-gnu"
 
-; Function Attrs: noinline nounwind
-define i32 @strcmp(i8*, i8*) #0 {
-  %3 = alloca i32, align 4
-  %4 = alloca i8*, align 4
-  %5 = alloca i8*, align 4
-  store i8* %0, i8** %4, align 4
-  store i8* %1, i8** %5, align 4
+; Function Attrs: norecurse nounwind readonly
+define i32 @strcmp(i8* nocapture readonly, i8* nocapture readonly) local_unnamed_addr #0 {
+  %3 = load i8, i8* %0, align 1, !tbaa !1
+  %4 = icmp eq i8 %3, 0
+  br i1 %4, label %22, label %5
+
+; <label>:5:                                      ; preds = %2
   br label %6
 
-; <label>:6:                                      ; preds = %26, %2
-  %7 = load i8*, i8** %4, align 4
-  %8 = load i8, i8* %7, align 1
-  %9 = sext i8 %8 to i32
-  %10 = icmp ne i32 %9, 0
-  br i1 %10, label %11, label %24
+; <label>:6:                                      ; preds = %5, %14
+  %7 = phi i8 [ %17, %14 ], [ %3, %5 ]
+  %8 = phi i8* [ %16, %14 ], [ %1, %5 ]
+  %9 = phi i8* [ %15, %14 ], [ %0, %5 ]
+  %10 = load i8, i8* %8, align 1, !tbaa !1
+  %11 = icmp eq i8 %7, %10
+  %12 = icmp ne i8 %10, 0
+  %13 = and i1 %11, %12
+  br i1 %13, label %14, label %19
 
-; <label>:11:                                     ; preds = %6
-  %12 = load i8*, i8** %5, align 4
-  %13 = load i8, i8* %12, align 1
-  %14 = sext i8 %13 to i32
-  %15 = icmp ne i32 %14, 0
-  br i1 %15, label %16, label %24
+; <label>:14:                                     ; preds = %6
+  %15 = getelementptr inbounds i8, i8* %9, i32 1
+  %16 = getelementptr inbounds i8, i8* %8, i32 1
+  %17 = load i8, i8* %15, align 1, !tbaa !1
+  %18 = icmp eq i8 %17, 0
+  br i1 %18, label %19, label %6
+
+; <label>:19:                                     ; preds = %14, %6
+  %20 = phi i8* [ %16, %14 ], [ %8, %6 ]
+  %21 = phi i8 [ 0, %14 ], [ %7, %6 ]
+  br label %22
+
+; <label>:22:                                     ; preds = %19, %2
+  %23 = phi i8* [ %1, %2 ], [ %20, %19 ]
+  %24 = phi i8 [ 0, %2 ], [ %21, %19 ]
+  %25 = load i8, i8* %23, align 1, !tbaa !1
+  %26 = icmp eq i8 %24, %25
+  %27 = icmp slt i8 %24, %25
+  %28 = select i1 %27, i32 -1, i32 1
+  %29 = select i1 %26, i32 0, i32 %28
+  ret i32 %29
+}
+
+; Function Attrs: norecurse nounwind readonly
+define i32 @atoi(i8* nocapture readonly) local_unnamed_addr #0 {
+  %2 = load i8, i8* %0, align 1, !tbaa !1
+  %3 = sext i8 %2 to i32
+  %4 = add nsw i32 %3, -48
+  %5 = icmp ult i32 %4, 10
+  br i1 %5, label %6, label %17
+
+; <label>:6:                                      ; preds = %1
+  %7 = load i8, i8* %0, align 1, !tbaa !1
+  %8 = sext i8 %7 to i32
+  %9 = add nsw i32 %8, -48
+  %10 = icmp ult i32 %9, 10
+  br label %11
+
+; <label>:11:                                     ; preds = %6, %11
+  %12 = phi i32 [ %4, %6 ], [ %9, %11 ]
+  %13 = phi i32 [ 0, %6 ], [ %15, %11 ]
+  %14 = mul i32 %13, 10
+  %15 = add nsw i32 %12, %14
+  br i1 %10, label %11, label %16
 
 ; <label>:16:                                     ; preds = %11
-  %17 = load i8*, i8** %4, align 4
-  %18 = load i8, i8* %17, align 1
-  %19 = sext i8 %18 to i32
-  %20 = load i8*, i8** %5, align 4
-  %21 = load i8, i8* %20, align 1
-  %22 = sext i8 %21 to i32
-  %23 = icmp eq i32 %19, %22
-  br label %24
+  br label %17
 
-; <label>:24:                                     ; preds = %16, %11, %6
-  %25 = phi i1 [ false, %11 ], [ false, %6 ], [ %23, %16 ]
-  br i1 %25, label %26, label %31
-
-; <label>:26:                                     ; preds = %24
-  %27 = load i8*, i8** %4, align 4
-  %28 = getelementptr inbounds i8, i8* %27, i32 1
-  store i8* %28, i8** %4, align 4
-  %29 = load i8*, i8** %5, align 4
-  %30 = getelementptr inbounds i8, i8* %29, i32 1
-  store i8* %30, i8** %5, align 4
-  br label %6
-
-; <label>:31:                                     ; preds = %24
-  %32 = load i8*, i8** %4, align 4
-  %33 = load i8, i8* %32, align 1
-  %34 = sext i8 %33 to i32
-  %35 = load i8*, i8** %5, align 4
-  %36 = load i8, i8* %35, align 1
-  %37 = sext i8 %36 to i32
-  %38 = icmp eq i32 %34, %37
-  br i1 %38, label %39, label %40
-
-; <label>:39:                                     ; preds = %31
-  store i32 0, i32* %3, align 4
-  br label %50
-
-; <label>:40:                                     ; preds = %31
-  %41 = load i8*, i8** %4, align 4
-  %42 = load i8, i8* %41, align 1
-  %43 = sext i8 %42 to i32
-  %44 = load i8*, i8** %5, align 4
-  %45 = load i8, i8* %44, align 1
-  %46 = sext i8 %45 to i32
-  %47 = icmp slt i32 %43, %46
-  br i1 %47, label %48, label %49
-
-; <label>:48:                                     ; preds = %40
-  store i32 -1, i32* %3, align 4
-  br label %50
-
-; <label>:49:                                     ; preds = %40
-  store i32 1, i32* %3, align 4
-  br label %50
-
-; <label>:50:                                     ; preds = %49, %48, %39
-  %51 = load i32, i32* %3, align 4
-  ret i32 %51
+; <label>:17:                                     ; preds = %16, %1
+  %18 = phi i32 [ 0, %1 ], [ %15, %16 ]
+  ret i32 %18
 }
 
-; Function Attrs: noinline nounwind
-define i32 @atoi(i8*) #0 {
-  %2 = alloca i8*, align 4
-  %3 = alloca i32, align 4
-  %4 = alloca i8, align 1
-  %5 = alloca i32, align 4
-  store i8* %0, i8** %2, align 4
-  store i32 0, i32* %3, align 4
-  br label %6
+; Function Attrs: norecurse nounwind
+define void @memcpy(i8* nocapture, i8* nocapture readonly, i32) local_unnamed_addr #1 {
+  %4 = icmp sgt i32 %2, 0
+  br i1 %4, label %5, label %7
 
-; <label>:6:                                      ; preds = %12, %1
-  %7 = load i8*, i8** %2, align 4
-  %8 = load i8, i8* %7, align 1
-  %9 = sext i8 %8 to i32
-  %10 = call i32 @isdigit(i32 %9) #2
-  %11 = icmp ne i32 %10, 0
-  br i1 %11, label %12, label %25
+; <label>:5:                                      ; preds = %3
+  br label %8
 
-; <label>:12:                                     ; preds = %6
-  %13 = load i8*, i8** %2, align 4
-  %14 = load i8, i8* %13, align 1
-  store i8 %14, i8* %4, align 1
-  %15 = load i8, i8* %4, align 1
-  %16 = sext i8 %15 to i32
-  %17 = sub nsw i32 %16, 48
-  store i32 %17, i32* %5, align 4
-  %18 = load i32, i32* %3, align 4
-  %19 = shl i32 %18, 3
-  %20 = load i32, i32* %3, align 4
-  %21 = shl i32 %20, 1
-  %22 = add nsw i32 %19, %21
-  %23 = load i32, i32* %5, align 4
-  %24 = add nsw i32 %22, %23
-  store i32 %24, i32* %3, align 4
-  br label %6
+; <label>:6:                                      ; preds = %8
+  br label %7
 
-; <label>:25:                                     ; preds = %6
-  %26 = load i32, i32* %3, align 4
-  ret i32 %26
-}
-
-; Function Attrs: nounwind readonly
-declare i32 @isdigit(i32) #1
-
-; Function Attrs: noinline nounwind
-define void @memcpy(i8*, i8*, i32) #0 {
-  %4 = alloca i8*, align 4
-  %5 = alloca i8*, align 4
-  %6 = alloca i32, align 4
-  %7 = alloca i8*, align 4
-  %8 = alloca i8*, align 4
-  %9 = alloca i32, align 4
-  store i8* %0, i8** %4, align 4
-  store i8* %1, i8** %5, align 4
-  store i32 %2, i32* %6, align 4
-  %10 = load i8*, i8** %4, align 4
-  store i8* %10, i8** %7, align 4
-  %11 = load i8*, i8** %5, align 4
-  store i8* %11, i8** %8, align 4
-  store i32 0, i32* %9, align 4
-  br label %12
-
-; <label>:12:                                     ; preds = %20, %3
-  %13 = load i32, i32* %9, align 4
-  %14 = load i32, i32* %6, align 4
-  %15 = icmp slt i32 %13, %14
-  br i1 %15, label %16, label %27
-
-; <label>:16:                                     ; preds = %12
-  %17 = load i8*, i8** %8, align 4
-  %18 = load i8, i8* %17, align 1
-  %19 = load i8*, i8** %7, align 4
-  store i8 %18, i8* %19, align 1
-  br label %20
-
-; <label>:20:                                     ; preds = %16
-  %21 = load i32, i32* %9, align 4
-  %22 = add nsw i32 %21, 1
-  store i32 %22, i32* %9, align 4
-  %23 = load i8*, i8** %8, align 4
-  %24 = getelementptr inbounds i8, i8* %23, i32 1
-  store i8* %24, i8** %8, align 4
-  %25 = load i8*, i8** %7, align 4
-  %26 = getelementptr inbounds i8, i8* %25, i32 1
-  store i8* %26, i8** %7, align 4
-  br label %12
-
-; <label>:27:                                     ; preds = %12
+; <label>:7:                                      ; preds = %6, %3
   ret void
+
+; <label>:8:                                      ; preds = %5, %8
+  %9 = phi i32 [ %13, %8 ], [ 0, %5 ]
+  %10 = phi i8* [ %14, %8 ], [ %1, %5 ]
+  %11 = phi i8* [ %15, %8 ], [ %0, %5 ]
+  %12 = load i8, i8* %10, align 1, !tbaa !1
+  store i8 %12, i8* %11, align 1, !tbaa !1
+  %13 = add nuw nsw i32 %9, 1
+  %14 = getelementptr inbounds i8, i8* %10, i32 1
+  %15 = getelementptr inbounds i8, i8* %11, i32 1
+  %16 = icmp eq i32 %13, %2
+  br i1 %16, label %6, label %8
 }
 
-attributes #0 = { noinline nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { nounwind readonly "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #2 = { nounwind readonly }
+attributes #0 = { norecurse nounwind readonly "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { norecurse nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.ident = !{!0}
 
 !0 = !{!"clang version 4.0.0-1ubuntu1~16.04.2 (tags/RELEASE_400/rc1)"}
+!1 = !{!2, !2, i64 0}
+!2 = !{!"omnipotent char", !3, i64 0}
+!3 = !{!"Simple C/C++ TBAA"}

@@ -71,13 +71,29 @@ void FRISCDAGToDAGISel::Select(SDNode *Node) {
                     CurDAG->getTargetConstant(0, dl, MVT::i32)));
 
             return;
-        }/* case ISD::SIGN_EXTEND: {
-            DEBUG(errs() << "== Got SIGN_EXTEND"; Node->dump(CurDAG); errs() << "\n");
+        }
+        /*case ISD::Constant: {
+            uint64_t ImmVal = (cast<ConstantSDNode>(Node))->getZExtValue();
+            uint64_t SupportedMask = 0xfffffffff;
 
-            return;
+            if (isInt<20>(ImmVal) || ImmVal(ImmVal & SupportedMask) != ImmVal) {
+                DEBUG(errs() << "Not an Move_ri32"; errs() << "\n");
+                break;  // leave the switch-case
+            }
+
+            // Split the constant into two 16-bit parts
+            uint64_t LoMask = 0xffff, HiMask = 0xffff0000;
+
+            SDValue Const16 = CurDag->getTargetConstant(16, dl, MVT::i32);
+            SDValue ConstLo = CurDAG->getTargetConstant((ImmVal & LoMask), dl, MVT::i32);
+            SDValue ConstHi = CurDag->getTargetConstant((ImmVal & HiMask) >> 16, dl, MVT::i32);
+
+            MachineSDNode *New = CurDAG->getMachineNode(FRISC::MOVE_ri, dl, MVT::i32, ConstHi);
+            New = CurDag->getMachineNode(FRISC::SHL_ri, dl, MVT::i32, SDValue(New, 0), Const16);
+            New = CurDag->getMachineNode(FRISC::ADD_ri, dl, MVT::i32, SDValue(New, 0), ConstLo);
+
+            ReplaceNode(Node, New);
         }*/
-        /*case ISD::SIGN_EXTEND_INREG:
-            return;*/
     }
 
     // Select the default instruction.

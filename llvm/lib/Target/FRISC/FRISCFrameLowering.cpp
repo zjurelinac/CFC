@@ -20,22 +20,64 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/MathExtras.h"
 
 using namespace llvm;
 
 FRISCFrameLowering::FRISCFrameLowering(const FRISCSubtarget &STI)
     : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, /*StackAlignment=*/4, /*LocalAreaOffset=*/0) {}
 
+void FRISCFrameLowering::adjustSP(MachineFunction &MF, MachineBasicBlock &MBB,
+        MachineBasicBlock::iterator MBBI, int Amount) const {
+
+    DebugLoc DL;
+    const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+
+    if (Amount == 0) return;  // Nothing to do here
+
+    unsigned ChangeInstr = Amount < 0 ? FRISC::SUB_ri : FRISC::ADD_ri;
+    if (Amount < 0)
+        Amount = -Amount;
+
+    if (isInt<20>(Amount))
+        BuildMI(MBB, MBBI, DL, TII.get(ChangeInstr), FRISC::SP).addReg(FRISC::SP).addImm(Amount);
+    else  // TODO: Implement this case -> look into LEG
+        llvm_unreachable("SP adjustment doesn't fit into 20 bits!");
+}
+
+uint64_t FRISCFrameLowering::computeStackSize(MachineFunction &MF) const {
+    MachineFrameInfo &MFI = MF.getFrameInfo();
+    uint64_t StackSize = MFI.getStackSize();
+    unsigned StackAlign = getStackAlignment();
+
+    if (StackAlign > 0)
+        StackSize = (StackSize + StackAlign - 1) / StackAlign * StackAlign;
+
+    return StackSize;
+}
+
 bool FRISCFrameLowering::hasFP(const MachineFunction &MF) const { return true; }
 
-void FRISCFrameLowering::emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const {}
+void FRISCFrameLowering::emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const {
+    MachineBasicBlock::iterator MBBI = MBB.begin();
+    DebugLoc dl = (MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc());
+    uint64_t StackSize = computeStackSize(MF);
 
-void FRISCFrameLowering::emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const {}
+    adjustSP(MF, MBB, MBBI, -StackSize);  // Decrease SP
+}
+
+void FRISCFrameLowering::emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const {
+  MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
+  DebugLoc dl = MBBI->getDebugLoc();
+  uint64_t StackSize = computeStackSize(MF);
+
+  adjustSP(MF, MBB, MBBI, +StackSize);  // Increase SP
+}
 
 MachineBasicBlock::iterator FRISCFrameLowering::eliminateCallFramePseudoInstr(MachineFunction &MF,
         MachineBasicBlock &MBB, MachineBasicBlock::iterator I) const {
 
-    const FRISCInstrInfo &TII = *static_cast<const FRISCInstrInfo*>(MF.getSubtarget().getInstrInfo());
+    /*const FRISCInstrInfo &TII = *static_cast<const FRISCInstrInfo*>(MF.getSubtarget().getInstrInfo());
     unsigned StackAlign = getStackAlignment();
 
     if (!hasReservedCallFrame(MF)) {
@@ -54,8 +96,7 @@ MachineBasicBlock::iterator FRISCFrameLowering::eliminateCallFramePseudoInstr(Ma
             MachineInstr *New = nullptr;
             if (Old.getOpcode() == TII.getCallFrameSetupOpcode()) {
                 New = BuildMI(MF, Old.getDebugLoc(), TII.get(FRISC::SUB_ri), FRISC::SP)
-                        .addReg(FRISC::SP)
-                        .addImm(Amount);
+                        .addReg(FRISC::SP).addImm(Amount);
             } else {
                 assert(Old.getOpcode() == TII.getCallFrameDestroyOpcode());
                 // factor out the amount the callee already popped.
@@ -79,13 +120,19 @@ MachineBasicBlock::iterator FRISCFrameLowering::eliminateCallFramePseudoInstr(Ma
             MachineInstr *New =
                 BuildMI(MF, Old.getDebugLoc(), TII.get(FRISC::SUB_ri), FRISC::SP)
                     .addReg(FRISC::SP).addImm(CalleeAmt);
-          
+
           New->getOperand(3).setIsDead(); // The SRW implicit def is dead.
           MBB.insert(I, New);
         }
     }
 
-    return MBB.erase(I);
+    return MBB.erase(I);*/
+
+    // TODO: Look into this upper part
+    if (I->getOpcode() == FRISC::ADJCALLSTACKUP || I->getOpcode() == FRISC::ADJCALLSTACKDOWN)
+        return MBB.erase(I);
+    else
+        return I;
 }
 
 bool FRISCFrameLowering::spillCalleeSavedRegisters(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
@@ -105,6 +152,8 @@ bool FRISCFrameLowering::spillCalleeSavedRegisters(MachineBasicBlock &MBB, Machi
         unsigned Reg = CSI[i-1].getReg();
         // Add the callee-saved register as live-in. It's killed at the spill.
         MBB.addLiveIn(Reg);
+
+        // TODO: What if it's an SR register?
         BuildMI(MBB, MI, DL, TII.get(FRISC::PUSH)).addReg(Reg, RegState::Kill);
     }
     return true;
@@ -112,7 +161,7 @@ bool FRISCFrameLowering::spillCalleeSavedRegisters(MachineBasicBlock &MBB, Machi
 
 bool FRISCFrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
         const std::vector<CalleeSavedInfo> &CSI, const TargetRegisterInfo *TRI) const {
-  
+
     if (CSI.empty()) return false;
 
     DebugLoc DL;
@@ -127,6 +176,7 @@ bool FRISCFrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB, Mac
     return true;
 }
 
+// Perhaps unneccessary?
 bool FRISCFrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
     return !MF.getFrameInfo().hasVarSizedObjects();
 }

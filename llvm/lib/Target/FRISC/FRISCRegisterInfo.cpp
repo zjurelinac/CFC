@@ -30,14 +30,14 @@ using namespace llvm;
 FRISCRegisterInfo::FRISCRegisterInfo() : FRISCGenRegisterInfo(FRISC::PC) {}
 
 const MCPhysReg* FRISCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  return CC_Save_SaveList; // from tablegen
+  return CC_Save_SaveList;
 }
 
 BitVector FRISCRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
     BitVector Reserved(getNumRegs());
 
-    Reserved.set(FRISC::SR); // status regsiter
-    Reserved.set(FRISC::PC); // program counter
+    Reserved.set(FRISC::SR);
+    Reserved.set(FRISC::PC);
 
     return Reserved;
 }
@@ -79,10 +79,10 @@ void FRISCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int 
     if (Offset % 4)
         llvm_unreachable("Offset must be aligned to 4 bytes because memory is 32-bit word addressable only");
 
-    FIOp.ChangeToRegister(FRISC::SP, false);
+    FIOp.ChangeToRegister(FRISC::FP, false);
     ImmOp.setImm(Offset);
 }
 
 unsigned FRISCRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-    return FRISC::SP;
+    return FRISC::FP;
 }

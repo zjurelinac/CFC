@@ -18,14 +18,11 @@ include "FRISCInstrFormats.td"
 //===----------------------------------------------------------------------===//
 
 // Ensure the two operands of compare are of the same type
-def SDT_FRISCCmp        : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
-def SDT_FRISCBrCC       : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,
-                                               SDTCisVT<1, i32>]>;
-def SDT_FRISCSelectCC   : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
-                                               SDTCisSameAs<1, 2>,
-                                               SDTCisVT<3, i32>]>;
-def SDT_FRISCWrapper    : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
-                                               SDTCisPtrTy<0>]>;
+// def SDT_FRISCMoveRI32     : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>, SDTCisVT<0, i32>]>;
+def SDT_FRISCCmp          : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
+def SDT_FRISCBrCC         : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>, SDTCisVT<1, i32>]>;
+def SDT_FRISCSelectCC     : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>, SDTCisSameAs<1, 2>, SDTCisVT<3, i32>]>;
+def SDT_FRISCWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>, SDTCisPtrTy<0>]>;
 def SDT_FRISCCall         : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_FRISCCallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
 def SDT_FRISCCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
@@ -34,18 +31,15 @@ def SDT_FRISCCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
 // FRISC-specific node definitions
 //===----------------------------------------------------------------------===//
 
-def FRISCretFlag : SDNode<"FRISCISD::RET_FLAG", SDTNone,
-                     [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
-def FRISCcmp     : SDNode<"FRISCISD::CMP", SDT_FRISCCmp, [SDNPOutGlue]>;
-def FRISCbrcc    : SDNode<"FRISCISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain, SDNPInGlue]>;
-def FRISCSelectCC: SDNode<"FRISCISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;
-def FRISCWrapper : SDNode<"FRISCISD::Wrapper", SDT_FRISCWrapper>;
-def FRISCcall    : SDNode<"FRISCISD::CALL", SDT_FRISCCall,
-                          [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue, SDNPVariadic]>;
-def FRISCcallseq_start : SDNode<"ISD::CALLSEQ_START", SDT_FRISCCallSeqStart,
-                                [SDNPHasChain, SDNPOutGlue]>;
-def FRISCcallseq_end   : SDNode<"ISD::CALLSEQ_END", SDT_FRISCCallSeqEnd,
-                                [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
+// def FRISCmoveri32       : SDNode<"FRISCISD::MOVEi32", SDT_FRISCMovei32>;
+def FRISCretFlag        : SDNode<"FRISCISD::RET_FLAG", SDTNone, [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+def FRISCcmp            : SDNode<"FRISCISD::CMP", SDT_FRISCCmp, [SDNPOutGlue]>;
+def FRISCbrcc           : SDNode<"FRISCISD::BR_CC", SDT_FRISCBrCC, [SDNPHasChain, SDNPInGlue]>;
+def FRISCSelectCC       : SDNode<"FRISCISD::SELECT_CC", SDT_FRISCSelectCC, [SDNPInGlue]>;
+def FRISCWrapper        : SDNode<"FRISCISD::Wrapper", SDT_FRISCWrapper>;
+def FRISCcall           : SDNode<"FRISCISD::CALL", SDT_FRISCCall, [SDNPHasChain, SDNPOutGlue, SDNPOptInGlue, SDNPVariadic]>;
+def FRISCcallseq_start  : SDNode<"ISD::CALLSEQ_START", SDT_FRISCCallSeqStart, [SDNPHasChain, SDNPOutGlue]>;
+def FRISCcallseq_end    : SDNode<"ISD::CALLSEQ_END", SDT_FRISCCallSeqEnd, [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
 //===----------------------------------------------------------------------===//
 // Instructions
@@ -180,6 +174,9 @@ let Defs = [SP], Uses = [SP] in {
                                      "# ADJCALLSTACKUP, $amt1",
                                      [(FRISCcallseq_end timm:$amt1, timm:$amt2)]>;
 }
+
+/*def MOVE_ri32 : FRISCPseudo<(outs GPR:$dst), (ins i32imm:$src), "",
+                            [(set i32:$dst, (FRISCmoveri32 imm:$src))]>;*/
 
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns
